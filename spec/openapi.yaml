@@ -1,0 +1,794 @@
+openapi: 3.1.0
+info:
+  title: SonicOS REST API
+  version: "7.0"
+  description: |
+    Partial OpenAPI specification for the SonicOS REST API.
+
+    **Authentication:** POST /api/sonicos/auth with Basic credentials.
+    A session cookie `smngsess` is returned and must be sent with all
+    subsequent requests.
+
+    **Pending config:** Most write operations stage changes. POST
+    /api/sonicos/config/pending to commit; DELETE to roll back.
+
+    **Wire format:** All objects are wrapped in a typed envelope.
+    For example an IPv4 address object is sent as:
+    `{"address_object": {"ipv4": {...}}}`.
+    List responses use a plural wrapper key containing an array of these envelopes.
+
+servers:
+  - url: "https://{host}/api/sonicos"
+    variables:
+      host:
+        default: "192.168.1.1"
+        description: SonicWall management IP or hostname
+
+security:
+  - cookieAuth: []
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: smngsess
+
+  schemas:
+    SonicOSStatus:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        info:
+          type: array
+          items:
+            $ref: "#/components/schemas/SonicOSStatusInfo"
+
+    SonicOSStatusInfo:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [info, warning, error]
+        code:
+          type: integer
+          description: |
+            SonicOS internal status code. Notable values:
+            - 1085: Session expired
+            - 1055: Object already exists
+            - 1030: Object not found
+        message:
+          type: string
+
+    SonicOSResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/SonicOSStatus"
+
+    # --- Address Objects ---
+
+    AddressObjectIPv4:
+      type: object
+      required: [name, zone]
+      properties:
+        name:
+          type: string
+          maxLength: 31
+          description: Object name, unique within zone
+        zone:
+          type: string
+          description: Zone the object belongs to (e.g. LAN, WAN, DMZ)
+        host:
+          type: object
+          description: Present when type is host
+          properties:
+            ip:
+              type: string
+              format: ipv4
+              description: Host IP address
+        network:
+          type: object
+          description: Present when type is network
+          properties:
+            subnet:
+              type: string
+              format: ipv4
+              description: Network address
+            mask:
+              type: string
+              format: ipv4
+              description: Subnet mask (dotted decimal, not CIDR)
+        range:
+          type: object
+          description: Present when type is range
+          properties:
+            begin:
+              type: string
+              format: ipv4
+            end:
+              type: string
+              format: ipv4
+        fqdn:
+          type: object
+          description: Present when type is fqdn
+          properties:
+            domain:
+              type: string
+        mac:
+          type: object
+          description: Present when type is mac
+          properties:
+            address:
+              type: string
+              description: MAC address in colon-separated format
+
+    AddressObjectIPv4Envelope:
+      type: object
+      required: [address_object]
+      properties:
+        address_object:
+          type: object
+          required: [ipv4]
+          properties:
+            ipv4:
+              $ref: "#/components/schemas/AddressObjectIPv4"
+
+    AddressObjectsListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            address_objects:
+              type: array
+              items:
+                $ref: "#/components/schemas/AddressObjectIPv4Envelope"
+
+    AddressObjectResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - $ref: "#/components/schemas/AddressObjectIPv4Envelope"
+
+    # --- Access Rules ---
+
+    AccessRuleIPv4:
+      type: object
+      required: [from, to, action]
+      properties:
+        name:
+          type: string
+          maxLength: 31
+        from:
+          type: string
+          description: Source zone name
+        to:
+          type: string
+          description: Destination zone name
+        action:
+          type: string
+          enum: [allow, deny, discard]
+        enabled:
+          type: boolean
+          default: true
+        log:
+          type: boolean
+          default: false
+        priority:
+          type: object
+          properties:
+            auto:
+              type: boolean
+            value:
+              type: integer
+        source:
+          $ref: "#/components/schemas/RuleEndpoint"
+        destination:
+          $ref: "#/components/schemas/RuleEndpoint"
+        service:
+          $ref: "#/components/schemas/RuleService"
+        comment:
+          type: string
+          maxLength: 255
+
+    RuleEndpoint:
+      type: object
+      properties:
+        address:
+          type: object
+          properties:
+            any:
+              type: boolean
+            name:
+              type: string
+            group:
+              type: string
+        port:
+          type: object
+          properties:
+            any:
+              type: boolean
+
+    RuleService:
+      type: object
+      properties:
+        any:
+          type: boolean
+        name:
+          type: string
+
+    AccessRuleIPv4Envelope:
+      type: object
+      required: [access_rule]
+      properties:
+        access_rule:
+          type: object
+          required: [ipv4]
+          properties:
+            ipv4:
+              $ref: "#/components/schemas/AccessRuleIPv4"
+
+    AccessRulesListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            access_rules:
+              type: array
+              items:
+                $ref: "#/components/schemas/AccessRuleIPv4Envelope"
+
+    # --- Interfaces ---
+
+    Interface:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Interface name (e.g. X0, X1, X2)
+        ip_assignment:
+          type: string
+          enum: [static, dhcp, pppoe, l2tp]
+        ip:
+          type: string
+          format: ipv4
+        subnet:
+          type: string
+          format: ipv4
+        zone:
+          type: string
+        enabled:
+          type: boolean
+        comment:
+          type: string
+
+    InterfaceEnvelope:
+      type: object
+      required: [interface]
+      properties:
+        interface:
+          $ref: "#/components/schemas/Interface"
+
+    InterfacesListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            interfaces:
+              type: array
+              items:
+                $ref: "#/components/schemas/InterfaceEnvelope"
+
+    # --- NAT Policies ---
+
+    NatPolicyIPv4:
+      type: object
+      required: [inbound_interface, outbound_interface]
+      properties:
+        name:
+          type: string
+          maxLength: 31
+        enabled:
+          type: boolean
+          default: true
+        inbound_interface:
+          type: string
+          description: Inbound interface name or "any"
+        outbound_interface:
+          type: string
+          description: Outbound interface name or "any"
+        original_source:
+          type: string
+          description: Address object name or "any"
+        translated_source:
+          type: string
+          description: Address object name, "original", or "interface ip"
+        original_destination:
+          type: string
+          description: Address object name or "any"
+        translated_destination:
+          type: string
+          description: Address object name or "original"
+        original_service:
+          type: string
+          description: Service object name or "any"
+        translated_service:
+          type: string
+          description: Service object name or "original"
+        comment:
+          type: string
+          maxLength: 255
+
+    NatPolicyIPv4Envelope:
+      type: object
+      required: [nat_policy]
+      properties:
+        nat_policy:
+          type: object
+          required: [ipv4]
+          properties:
+            ipv4:
+              $ref: "#/components/schemas/NatPolicyIPv4"
+
+    NatPoliciesListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            nat_policies:
+              type: array
+              items:
+                $ref: "#/components/schemas/NatPolicyIPv4Envelope"
+
+    # --- Service Objects ---
+
+    ServiceObject:
+      type: object
+      required: [name, protocol]
+      properties:
+        name:
+          type: string
+          maxLength: 31
+        protocol:
+          type: object
+          properties:
+            tcp:
+              $ref: "#/components/schemas/ServicePortRange"
+            udp:
+              $ref: "#/components/schemas/ServicePortRange"
+            icmp:
+              type: object
+              properties:
+                type:
+                  type: integer
+                code:
+                  type: integer
+
+    ServicePortRange:
+      type: object
+      properties:
+        begin:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        end:
+          type: integer
+          minimum: 0
+          maximum: 65535
+
+    ServiceObjectEnvelope:
+      type: object
+      required: [service_object]
+      properties:
+        service_object:
+          $ref: "#/components/schemas/ServiceObject"
+
+    ServiceObjectsListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            service_objects:
+              type: array
+              items:
+                $ref: "#/components/schemas/ServiceObjectEnvelope"
+
+    # --- DHCP ---
+
+    DhcpLease:
+      type: object
+      properties:
+        ip:
+          type: string
+          format: ipv4
+        mac:
+          type: string
+        hostname:
+          type: string
+        expires:
+          type: string
+          format: date-time
+        interface:
+          type: string
+
+    DhcpLeasesResponse:
+      allOf:
+        - $ref: "#/components/schemas/SonicOSResponse"
+        - type: object
+          properties:
+            dhcp_leases:
+              type: array
+              items:
+                $ref: "#/components/schemas/DhcpLease"
+
+paths:
+  /auth:
+    post:
+      summary: Authenticate and create a session
+      description: |
+        Authenticates with Basic credentials. On success, sets the `smngsess`
+        session cookie which must be included in all subsequent requests.
+      security:
+        - basicAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Authenticated successfully
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: "smngsess=abc123; Path=/; Secure; HttpOnly"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+
+    delete:
+      summary: Logout and destroy the current session
+      responses:
+        "200":
+          description: Session destroyed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+
+  /config/pending:
+    post:
+      summary: Commit all staged (pending) configuration changes
+      description: |
+        Applies all changes staged since the last commit or since login.
+        Changes are visible to other sessions but not persistent until committed.
+      responses:
+        "200":
+          description: Changes committed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+
+    delete:
+      summary: Roll back all staged (pending) configuration changes
+      description: Discards all staged changes, reverting to the last committed state.
+      responses:
+        "200":
+          description: Changes rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+
+  /address-objects/ipv4:
+    get:
+      summary: List all IPv4 address objects
+      responses:
+        "200":
+          description: List of address objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressObjectsListResponse"
+
+    post:
+      summary: Create an IPv4 address object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressObjectIPv4Envelope"
+            example:
+              address_object:
+                ipv4:
+                  name: "my-server"
+                  zone: "LAN"
+                  host:
+                    ip: "10.0.0.100"
+      responses:
+        "200":
+          description: Address object created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+        "409":
+          description: Object with that name already exists
+
+  /address-objects/ipv4/name/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Address object name
+
+    get:
+      summary: Get a specific IPv4 address object by name
+      responses:
+        "200":
+          description: Address object details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressObjectResponse"
+        "404":
+          description: Object not found
+
+    put:
+      summary: Update an existing IPv4 address object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressObjectIPv4Envelope"
+      responses:
+        "200":
+          description: Object updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+        "404":
+          description: Object not found
+
+    delete:
+      summary: Delete an IPv4 address object
+      responses:
+        "200":
+          description: Object deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonicOSResponse"
+        "404":
+          description: Object not found
+
+  /access-rules/ipv4:
+    get:
+      summary: List all IPv4 access rules
+      responses:
+        "200":
+          description: List of access rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRulesListResponse"
+
+    post:
+      summary: Create an IPv4 access rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessRuleIPv4Envelope"
+      responses:
+        "200":
+          description: Rule created
+
+  /access-rules/ipv4/from/{from_zone}/to/{to_zone}/name/{name}:
+    parameters:
+      - name: from_zone
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: to_zone
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      summary: Get a specific access rule
+      responses:
+        "200":
+          description: Access rule details
+
+    put:
+      summary: Update an access rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessRuleIPv4Envelope"
+      responses:
+        "200":
+          description: Rule updated
+
+    delete:
+      summary: Delete an access rule
+      responses:
+        "200":
+          description: Rule deleted
+
+  /interfaces:
+    get:
+      summary: List all interfaces
+      responses:
+        "200":
+          description: List of interfaces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterfacesListResponse"
+
+  /interfaces/name/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      summary: Get a specific interface by name
+      responses:
+        "200":
+          description: Interface details
+
+  /nat-policies/ipv4:
+    get:
+      summary: List all IPv4 NAT policies
+      responses:
+        "200":
+          description: List of NAT policies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NatPoliciesListResponse"
+
+    post:
+      summary: Create a NAT policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NatPolicyIPv4Envelope"
+      responses:
+        "200":
+          description: NAT policy created
+
+  /nat-policies/ipv4/name/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      summary: Get a NAT policy by name
+      responses:
+        "200":
+          description: NAT policy details
+
+    put:
+      summary: Update a NAT policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NatPolicyIPv4Envelope"
+      responses:
+        "200":
+          description: NAT policy updated
+
+    delete:
+      summary: Delete a NAT policy
+      responses:
+        "200":
+          description: NAT policy deleted
+
+  /service-objects:
+    get:
+      summary: List all service objects
+      responses:
+        "200":
+          description: List of service objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceObjectsListResponse"
+
+    post:
+      summary: Create a service object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceObjectEnvelope"
+      responses:
+        "200":
+          description: Service object created
+
+  /service-objects/name/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      summary: Get a service object by name
+      responses:
+        "200":
+          description: Service object details
+
+    put:
+      summary: Update a service object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceObjectEnvelope"
+      responses:
+        "200":
+          description: Service object updated
+
+    delete:
+      summary: Delete a service object
+      responses:
+        "200":
+          description: Service object deleted
+
+  /dhcp/server/lease:
+    get:
+      summary: List DHCP server leases
+      responses:
+        "200":
+          description: List of active DHCP leases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DhcpLeasesResponse"
