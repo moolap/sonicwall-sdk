@@ -112,6 +112,11 @@ func NewClient(host, username, password string, opts ...Option) (*Client, error)
 
 	// Initialise service fields
 	c.AddressObjects = &AddressObjectsService{client: c}
+	c.AccessRules = &AccessRulesService{client: c}
+	c.NatPolicies = &NatPoliciesService{client: c}
+	c.ServiceObjects = &ServiceObjectsService{client: c}
+	c.Interfaces = &InterfacesService{client: c}
+	c.Dhcp = &DhcpService{client: c}
 
 	return c, nil
 }
