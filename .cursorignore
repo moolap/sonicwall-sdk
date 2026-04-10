@@ -1,0 +1,12 @@
+# Reduce Cursor indexing / file-watcher load (especially during installs)
+node_modules/
+.pnpm-store/
+.pnpm-home/
+**/.venv/
+**/dist/
+**/coverage/
+**/.turbo/
+**/.ruff_cache/
+**/.pytest_cache/
+**/__pycache__/
+*.egg-info/

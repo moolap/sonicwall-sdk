@@ -13,6 +13,16 @@ pnpm add @sonicwall/sdk
 npm install @sonicwall/sdk
 ```
 
+## Authentication behavior
+
+The current TypeScript SDK implementation uses `Authorization: Basic ...` on
+`POST /auth` and stores the returned `smngsess` session cookie for subsequent
+requests.
+
+On some SonicOS 7.x devices, auth may instead require Digest `auth-int` and
+return a bearer token. If you are targeting those firmware variants, use the
+Python SDK path as the reference implementation for now.
+
 ## Basic usage
 
 ```typescript

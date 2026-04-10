@@ -25,7 +25,7 @@ class InterfacesResource(BaseResource):
 
     _BASE = "/interfaces"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     async def list(self) -> list[Interface]:

@@ -34,7 +34,9 @@ class NatPolicy(BaseModel):
     enabled: bool = True
     inbound_interface: str = Field(..., description="Inbound interface name or 'any'")
     outbound_interface: str = Field(..., description="Outbound interface name or 'any'")
-    original_source: str = Field(default="any", description="Original source address object or 'any'")
+    original_source: str = Field(
+        default="any", description="Original source address object or 'any'"
+    )
     translated_source: str = Field(
         default="original",
         description="Translated source address object, 'original', or 'interface ip'",
@@ -74,25 +76,47 @@ class NatPolicy(BaseModel):
         return {"nat_policy": {"ipv4": inner}}
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "NatPolicy":
+    def from_api_response(cls, data: dict[str, Any]) -> NatPolicy:
         """Parse from a SonicOS API response."""
         if "nat_policy" in data:
             data = data["nat_policy"]
         if "ipv4" in data:
             data = data["ipv4"]
 
+        def norm_ref(value: Any, *, default: str) -> str:
+            if isinstance(value, str):
+                return value
+            if isinstance(value, dict):
+                if value.get("any"):
+                    return "any"
+                if value.get("original"):
+                    return "original"
+                for key in ("name", "group"):
+                    v = value.get(key)
+                    if isinstance(v, str) and v:
+                        return v
+            return default
+
         return cls.model_validate(
             {
                 "name": data.get("name"),
-                "enabled": data.get("enabled", True),
-                "inbound_interface": data.get("inbound_interface", "any"),
-                "outbound_interface": data.get("outbound_interface", "any"),
-                "original_source": data.get("original_source", "any"),
-                "translated_source": data.get("translated_source", "original"),
-                "original_destination": data.get("original_destination", "any"),
-                "translated_destination": data.get("translated_destination", "original"),
-                "original_service": data.get("original_service", "any"),
-                "translated_service": data.get("translated_service", "original"),
+                "enabled": data.get("enabled", data.get("enable", True)),
+                "inbound_interface": data.get("inbound_interface", data.get("inbound", "any")),
+                "outbound_interface": data.get("outbound_interface", data.get("outbound", "any")),
+                "original_source": norm_ref(
+                    data.get("original_source", data.get("source")), default="any"
+                ),
+                "translated_source": norm_ref(data.get("translated_source"), default="original"),
+                "original_destination": norm_ref(
+                    data.get("original_destination", data.get("destination")), default="any"
+                ),
+                "translated_destination": norm_ref(
+                    data.get("translated_destination"), default="original"
+                ),
+                "original_service": norm_ref(
+                    data.get("original_service", data.get("service")), default="any"
+                ),
+                "translated_service": norm_ref(data.get("translated_service"), default="original"),
                 "comment": data.get("comment"),
             }
         )

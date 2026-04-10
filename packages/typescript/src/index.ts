@@ -46,5 +46,61 @@ export {
 } from "./models/addressObject.ts";
 export type { AddressObject, AddressObjectType } from "./models/addressObject.ts";
 
+export {
+  AccessRuleActionSchema,
+  RuleAddressSchema,
+  RuleServiceSchema,
+  RulePrioritySchema,
+  AccessRuleSchema,
+  accessRuleToApiDict,
+  accessRuleFromApiResponse,
+} from "./models/accessRule.ts";
+export type {
+  AccessRule,
+  AccessRuleAction,
+  RuleAddress,
+  RuleService,
+  RulePriority,
+} from "./models/accessRule.ts";
+
+export {
+  NatPolicySchema,
+  natPolicyToApiDict,
+  natPolicyFromApiResponse,
+  natPolicyFirmwareCollectionPayload,
+} from "./models/natPolicy.ts";
+export type { NatPolicy } from "./models/natPolicy.ts";
+
+export {
+  PortRangeSchema,
+  IcmpSpecSchema,
+  ServiceProtocolSchema,
+  ServiceObjectSchema,
+  serviceObjectToApiDict,
+  serviceObjectFromApiResponse,
+  firmwareServiceObjectCollectionPayload,
+} from "./models/serviceObject.ts";
+export type {
+  PortRange,
+  IcmpSpec,
+  ServiceProtocol,
+  ServiceObject,
+} from "./models/serviceObject.ts";
+
+export {
+  IPAssignmentSchema,
+  InterfaceSchema,
+  interfaceFromApiResponse,
+} from "./models/interface.ts";
+export type { Interface, IPAssignment } from "./models/interface.ts";
+
+export { DhcpLeaseSchema, dhcpLeaseFromApiResponse } from "./models/dhcpLease.ts";
+export type { DhcpLease } from "./models/dhcpLease.ts";
+
 // Resources
 export { AddressObjectsResource } from "./resources/addressObjects.ts";
+export { AccessRulesResource } from "./resources/accessRules.ts";
+export { NatPoliciesResource } from "./resources/natPolicies.ts";
+export { ServiceObjectsResource } from "./resources/serviceObjects.ts";
+export { InterfacesResource } from "./resources/interfaces.ts";
+export { DhcpResource } from "./resources/dhcp.ts";

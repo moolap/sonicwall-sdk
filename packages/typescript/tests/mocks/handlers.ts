@@ -36,7 +36,7 @@ export const ADDR_OBJ_NETWORK = {
 const SESSION_COOKIE = "test-session-cookie";
 
 export function makeListResponse(
-  ...objects: Array<typeof ADDR_OBJ_HOST>
+  ...objects: Array<typeof ADDR_OBJ_HOST | typeof ADDR_OBJ_NETWORK>
 ): Record<string, unknown> {
   return {
     status: { success: true, info: [] },

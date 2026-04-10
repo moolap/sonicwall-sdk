@@ -17,7 +17,12 @@ type Client struct {
 	auth       *authManager
 
 	// Services
-	AddressObjects *AddressObjectsService
+	AddressObjects  *AddressObjectsService
+	AccessRules     *AccessRulesService
+	NatPolicies     *NatPoliciesService
+	ServiceObjects  *ServiceObjectsService
+	Interfaces      *InterfacesService
+	Dhcp            *DhcpService
 }
 
 // Connect authenticates with the SonicWall device.

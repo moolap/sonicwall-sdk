@@ -5,9 +5,12 @@ info:
   description: |
     Partial OpenAPI specification for the SonicOS REST API.
 
-    **Authentication:** POST /api/sonicos/auth with Basic credentials.
-    A session cookie `smngsess` is returned and must be sent with all
-    subsequent requests.
+    **Authentication (SonicOS 7.x):** POST /api/sonicos/auth uses a Digest
+    `auth-int` challenge/response flow and returns a `bearer_token` in the
+    status info. Subsequent requests use `Authorization: Bearer <token>`.
+
+    **Compatibility note:** Some firmware variants use session cookie
+    `smngsess` instead.
 
     **Pending config:** Most write operations stage changes. POST
     /api/sonicos/config/pending to commit; DELETE to roll back.
@@ -25,13 +28,18 @@ servers:
         description: SonicWall management IP or hostname
 
 security:
+  - bearerAuth: []
   - cookieAuth: []
 
 components:
   securitySchemes:
-    basicAuth:
+    digestAuth:
       type: http
-      scheme: basic
+      scheme: digest
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     cookieAuth:
       type: apiKey
       in: cookie
@@ -64,6 +72,10 @@ components:
             - 1030: Object not found
         message:
           type: string
+        bearer_token:
+          type: string
+          description: |
+            Optional auth token returned by SonicOS 7.x login responses.
 
     SonicOSResponse:
       type: object
@@ -431,10 +443,15 @@ paths:
     post:
       summary: Authenticate and create a session
       description: |
-        Authenticates with Basic credentials. On success, sets the `smngsess`
-        session cookie which must be included in all subsequent requests.
+        SonicOS 7.x authentication is a Digest `auth-int` handshake:
+        first request returns a Digest challenge (401), second request
+        includes a computed Digest Authorization header and returns a
+        `bearer_token` in status info.
+
+        Some firmware variants instead set `smngsess` cookie.
       security:
-        - basicAuth: []
+        - {}
+        - digestAuth: []
       requestBody:
         required: false
         content:
@@ -454,7 +471,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/SonicOSResponse"
         "401":
-          description: Invalid credentials
+          description: |
+            Digest challenge or invalid credentials
           content:
             application/json:
               schema:

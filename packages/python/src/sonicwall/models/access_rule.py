@@ -119,7 +119,7 @@ class AccessRule(BaseModel):
         return {"access_rule": {"ipv4": inner}}
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "AccessRule":
+    def from_api_response(cls, data: dict[str, Any]) -> AccessRule:
         """Parse from a SonicOS API response."""
         if "access_rule" in data:
             data = data["access_rule"]

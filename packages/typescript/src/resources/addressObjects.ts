@@ -3,7 +3,7 @@
  */
 
 import type { SonicWallClient } from "../client.ts";
-import { NotFoundError } from "../errors.ts";
+import { NotFoundError, SonicWallHTTPError } from "../errors.ts";
 import {
   fromApiResponse,
   toApiDict,
@@ -20,7 +20,7 @@ export class AddressObjectsResource extends BaseResource {
 
   /** List all IPv4 address objects. */
   async list(): Promise<AddressObject[]> {
-    return this._list(BASE, "address_objects", fromApiResponse);
+    return this._list(BASE, "address_objects", fromApiResponse, true);
   }
 
   /** Get a single address object by name. */
@@ -29,20 +29,56 @@ export class AddressObjectsResource extends BaseResource {
     const response = await this._get<Record<string, unknown>>(
       `${BASE}/name/${encoded}`
     );
-    return fromApiResponse(response);
+    return fromApiResponse(this.normalizeGetResponse(response, name));
   }
 
   /** Create a new IPv4 address object. */
   async create(obj: AddressObject): Promise<AddressObject> {
-    await this._post(`${BASE}`, toApiDict(obj));
-    return this.get(obj.name);
+    try {
+      await this._post(`${BASE}`, toApiDict(obj));
+    } catch (err) {
+      if (
+        err instanceof SonicWallHTTPError &&
+        err.statusCode === 400 &&
+        /schema validation error/i.test(err.message) &&
+        /address_objects/i.test(err.message)
+      ) {
+        const single = toApiDict(obj) as unknown as { address_object: unknown };
+        await this._post(`${BASE}`, { address_objects: [single.address_object] });
+      } else {
+        throw err;
+      }
+    }
+    try {
+      return await this.get(obj.name);
+    } catch {
+      return obj;
+    }
   }
 
   /** Update an existing address object. */
   async update(name: string, obj: AddressObject): Promise<AddressObject> {
     const encoded = encodeURIComponent(name);
-    await this._put(`${BASE}/name/${encoded}`, toApiDict(obj));
-    return this.get(obj.name);
+    try {
+      await this._put(`${BASE}/name/${encoded}`, toApiDict(obj));
+    } catch (err) {
+      if (
+        err instanceof SonicWallHTTPError &&
+        err.statusCode === 400 &&
+        /schema validation error/i.test(err.message) &&
+        /address_objects/i.test(err.message)
+      ) {
+        const single = toApiDict(obj) as unknown as { address_object: unknown };
+        await this._put(`${BASE}/name/${encoded}`, { address_objects: [single.address_object] });
+      } else {
+        throw err;
+      }
+    }
+    try {
+      return await this.get(obj.name);
+    } catch {
+      return obj;
+    }
   }
 
   /** Delete an address object by name. */
@@ -68,5 +104,26 @@ export class AddressObjectsResource extends BaseResource {
       }
       throw err;
     }
+  }
+
+  private normalizeGetResponse(
+    response: Record<string, unknown>,
+    expectedName: string
+  ): Record<string, unknown> {
+    const items = response["address_objects"];
+    if (!Array.isArray(items)) return response;
+    for (const item of items) {
+      if (
+        item &&
+        typeof item === "object" &&
+        "ipv4" in (item as Record<string, unknown>)
+      ) {
+        const ipv4 = (item as Record<string, unknown>)["ipv4"] as Record<string, unknown>;
+        if (ipv4?.["name"] === expectedName) {
+          return { address_object: { ipv4 } };
+        }
+      }
+    }
+    return response;
   }
 }

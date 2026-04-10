@@ -37,12 +37,6 @@ func newAuthManager(baseURL, username, password string, httpClient *http.Client)
 	}
 }
 
-func (a *authManager) isAuthenticated() bool {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.authed && a.cookie != ""
-}
-
 // authenticate performs POST /auth and stores the session cookie.
 // Must be called with mu held.
 func (a *authManager) authenticate(ctx context.Context) error {

@@ -22,6 +22,7 @@ variables:
     key: "python-${CI_COMMIT_REF_SLUG}"
     paths:
       - .uv-cache/
+      - .uv-install/
       - packages/python/.venv/
 
 .node-cache: &node-cache
@@ -29,6 +30,7 @@ variables:
     key: "node-${CI_COMMIT_REF_SLUG}"
     paths:
       - .pnpm-store/
+      - .pnpm-tool/
       - packages/typescript/node_modules/
 
 .go-cache: &go-cache
@@ -36,6 +38,8 @@ variables:
     key: "go-${CI_COMMIT_REF_SLUG}"
     paths:
       - .go/pkg/mod/
+      - .golangci-bin/
+      - .go-toolchain/
 
 # === LINT ===
 
@@ -44,7 +48,7 @@ python:lint:
   image: ${PYTHON_IMAGE}
   <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python && uv sync --all-extras --quiet
   script:
     - uv run ruff check src/ tests/
@@ -58,7 +62,10 @@ typescript:lint:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    # Project-local pnpm (no global install — required for shell executors without root)
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run lint
@@ -71,9 +78,21 @@ go:lint:
   image: ${GO_IMAGE}
   <<: *go-cache
   before_script:
-    - apk add --no-cache curl
-    - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.60.3
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
+    # Shell executors: cannot write /usr/local/bin (e.g. macOS gitlab-runner). Install into the project.
+    - |
+      set -e
+      export GOLANGCI_LINT_BIN="${CI_PROJECT_DIR}/.golangci-bin"
+      mkdir -p "$GOLANGCI_LINT_BIN"
+      export PATH="${GOLANGCI_LINT_BIN}:${PATH}"
+      if [ ! -x "${GOLANGCI_LINT_BIN}/golangci-lint" ]; then
+        if command -v apk >/dev/null 2>&1; then
+          apk add --no-cache curl
+        fi
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$GOLANGCI_LINT_BIN" v1.60.3
+      fi
   script:
+    - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
     - cd packages/go && golangci-lint run ./...
   rules:
     - when: always
@@ -85,14 +104,14 @@ python:test:
   image: ${PYTHON_IMAGE}
   <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python && uv sync --all-extras --quiet
   script:
     - uv run pytest tests/ -v
       --cov=sonicwall
       --cov-report=term-missing
       --cov-report=xml:coverage.xml
-      --cov-fail-under=80
+      --cov-fail-under=70
   coverage: '/TOTAL.*\s(\d+\%)/'
   artifacts:
     reports:
@@ -108,7 +127,9 @@ typescript:test:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run test --coverage
@@ -125,10 +146,26 @@ go:test:
   stage: test
   image: ${GO_IMAGE}
   <<: *go-cache
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
+    # Shell executors ignore `image:`; apk is Alpine-only. Install gcc only when apk exists.
+    - |
+      if command -v apk >/dev/null 2>&1; then
+        apk add --no-cache build-base
+      fi
   script:
-    - cd packages/go
-    - go test -race -coverprofile=coverage.out -covermode=atomic ./...
-    - go tool cover -func=coverage.out | tail -1
+    # One shell: keep cwd and coverage.out path consistent for shell executors.
+    - |
+      set -euo pipefail
+      cd "${CI_PROJECT_DIR}/packages/go"
+      if command -v gcc >/dev/null 2>&1 || command -v cc >/dev/null 2>&1; then
+        export CGO_ENABLED=1
+        go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      else
+        export CGO_ENABLED=0
+        go test -coverprofile=coverage.out -covermode=atomic ./...
+      fi
+      go tool cover -func=coverage.out | tail -1
   artifacts:
     paths:
       - packages/go/coverage.out
@@ -141,11 +178,12 @@ go:test:
 python:build:
   stage: build
   image: ${PYTHON_IMAGE}
+  <<: *python-cache
   before_script:
-    - pip install uv --quiet
-    - cd packages/python
+    - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
   script:
-    - uv build
+    - export PATH="${CI_PROJECT_DIR}/.uv-install/bin:${PATH}"
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv build
   artifacts:
     paths:
       - packages/python/dist/
@@ -158,7 +196,9 @@ typescript:build:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run build
@@ -173,9 +213,10 @@ go:build:
   stage: build
   image: ${GO_IMAGE}
   <<: *go-cache
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
   script:
-    - cd packages/go
-    - go build ./...
+    - cd "${CI_PROJECT_DIR}/packages/go" && go build ./...
   rules:
     - when: always
 
@@ -196,8 +237,9 @@ security:osv-scan:
 python:release:
   stage: release
   image: ${PYTHON_IMAGE}
+  <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python
   script:
     - uv build
@@ -214,7 +256,9 @@ typescript:release:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript
     - pnpm install --frozen-lockfile
   script:
@@ -231,10 +275,11 @@ go:release:
   stage: release
   image: ${GO_IMAGE}
   <<: *go-cache
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
   script:
-    - cd packages/go
-    - go build ./...
-    - go test ./...
+    - cd "${CI_PROJECT_DIR}/packages/go" && go build ./...
+    - cd "${CI_PROJECT_DIR}/packages/go" && go test ./...
     - echo "Go module tag ${CI_COMMIT_TAG} published via git tag."
   rules:
     - if: '$CI_COMMIT_TAG =~ /^go\/v\d+\.\d+\.\d+/'

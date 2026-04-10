@@ -115,7 +115,7 @@ export class ConflictError extends SonicWallHTTPError {
 
 /** Raised when committing pending configuration fails. */
 export class CommitError extends SonicWallError {
-  readonly cause: Error | undefined;
+  override readonly cause: Error | undefined;
 
   constructor(message: string, cause?: Error) {
     super(message);
@@ -127,7 +127,7 @@ export class CommitError extends SonicWallError {
 
 /** Raised when rolling back pending configuration fails. */
 export class RollbackError extends SonicWallError {
-  readonly cause: Error | undefined;
+  override readonly cause: Error | undefined;
 
   constructor(message: string, cause?: Error) {
     super(message);

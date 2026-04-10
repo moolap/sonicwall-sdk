@@ -37,6 +37,7 @@ package sonicwall
 import (
 	"crypto/tls"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -102,7 +103,7 @@ func NewClient(host, username, password string, opts ...Option) (*Client, error)
 		}
 	}
 
-	baseURL := "https://" + host + "/api/sonicos"
+	baseURL := normalizeBaseHost(host) + "/api/sonicos"
 	c := &Client{
 		baseURL:    baseURL,
 		httpClient: httpClient,
@@ -111,6 +112,20 @@ func NewClient(host, username, password string, opts ...Option) (*Client, error)
 
 	// Initialise service fields
 	c.AddressObjects = &AddressObjectsService{client: c}
+	c.AccessRules = &AccessRulesService{client: c}
+	c.NatPolicies = &NatPoliciesService{client: c}
+	c.ServiceObjects = &ServiceObjectsService{client: c}
+	c.Interfaces = &InterfacesService{client: c}
+	c.Dhcp = &DhcpService{client: c}
 
 	return c, nil
+}
+
+func normalizeBaseHost(host string) string {
+	h := strings.TrimSpace(host)
+	h = strings.TrimRight(h, "/")
+	if strings.HasPrefix(strings.ToLower(h), "https://") || strings.HasPrefix(strings.ToLower(h), "http://") {
+		return h
+	}
+	return "https://" + h
 }

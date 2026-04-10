@@ -18,7 +18,12 @@ import {
   raiseForSonicOSBody,
 } from "./errors.ts";
 import type { SonicOSResponseBody } from "./errors.ts";
+import { AccessRulesResource } from "./resources/accessRules.ts";
 import { AddressObjectsResource } from "./resources/addressObjects.ts";
+import { DhcpResource } from "./resources/dhcp.ts";
+import { InterfacesResource } from "./resources/interfaces.ts";
+import { NatPoliciesResource } from "./resources/natPolicies.ts";
+import { ServiceObjectsResource } from "./resources/serviceObjects.ts";
 
 export interface SonicWallClientOptions {
   /** SonicWall management IP or hostname. */
@@ -38,10 +43,15 @@ export class SonicWallClient {
   readonly _ky: KyInstance;
 
   private _addressObjects: AddressObjectsResource | undefined;
+  private _accessRules: AccessRulesResource | undefined;
+  private _natPolicies: NatPoliciesResource | undefined;
+  private _serviceObjects: ServiceObjectsResource | undefined;
+  private _interfaces: InterfacesResource | undefined;
+  private _dhcp: DhcpResource | undefined;
   private _pendingDepth = 0;
 
   constructor(private readonly options: SonicWallClientOptions) {
-    const baseUrl = `https://${options.host}/api/sonicos/`;
+    const baseUrl = `${this.normalizeBaseHost(options.host)}/api/sonicos/`;
     this.auth = new AuthManager(baseUrl, options.username, options.password);
 
     this._ky = ky.create({
@@ -143,6 +153,41 @@ export class SonicWallClient {
     return this._addressObjects;
   }
 
+  get accessRules(): AccessRulesResource {
+    if (!this._accessRules) {
+      this._accessRules = new AccessRulesResource(this);
+    }
+    return this._accessRules;
+  }
+
+  get natPolicies(): NatPoliciesResource {
+    if (!this._natPolicies) {
+      this._natPolicies = new NatPoliciesResource(this);
+    }
+    return this._natPolicies;
+  }
+
+  get serviceObjects(): ServiceObjectsResource {
+    if (!this._serviceObjects) {
+      this._serviceObjects = new ServiceObjectsResource(this);
+    }
+    return this._serviceObjects;
+  }
+
+  get interfaces(): InterfacesResource {
+    if (!this._interfaces) {
+      this._interfaces = new InterfacesResource(this);
+    }
+    return this._interfaces;
+  }
+
+  get dhcp(): DhcpResource {
+    if (!this._dhcp) {
+      this._dhcp = new DhcpResource(this);
+    }
+    return this._dhcp;
+  }
+
   // --- Internal request method (used by resources) ---
 
   async request<T>(
@@ -220,5 +265,13 @@ export class SonicWallClient {
     }
     if (err instanceof Error) return err;
     return new Error(String(err));
+  }
+
+  private normalizeBaseHost(host: string): string {
+    const trimmed = host.trim().replace(/\/+$/, "");
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
   }
 }

@@ -2,25 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
-import respx
 import httpx
+import pytest
 
 from sonicwall import SonicWallClient
-from sonicwall._exceptions import NotFoundError, ConflictError
+from sonicwall._exceptions import ConflictError, NotFoundError
 from sonicwall.models import AddressObject, AddressObjectType
 from tests.conftest import (
-    HOST,
-    USERNAME,
-    PASSWORD,
-    BASE_URL,
-    SESSION_COOKIE,
-    AUTH_SUCCESS_RESPONSE,
     ADDR_OBJ_HOST_RAW,
-    ADDR_OBJ_NETWORK_RAW,
-    NOT_FOUND_RESPONSE,
+    AUTH_SUCCESS_RESPONSE,
     CONFLICT_RESPONSE,
-    make_list_response,
+    HOST,
+    NOT_FOUND_RESPONSE,
+    PASSWORD,
+    USERNAME,
     make_single_response,
 )
 
@@ -52,6 +47,59 @@ async def test_list_empty(mock_sonicwall):
 
 
 @pytest.mark.asyncio
+async def test_list_handles_host_address_key_shape(mock_sonicwall):
+    """list() should parse host objects that use host.address instead of host.ip."""
+    mock_sonicwall.get("/address-objects/ipv4").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": {"success": True, "info": []},
+                "address_objects": [
+                    {
+                        "address_object": {
+                            "ipv4": {
+                                "name": "my-server",
+                                "zone": "LAN",
+                                "host": {"address": "10.0.0.100"},
+                            }
+                        }
+                    }
+                ],
+            },
+        )
+    )
+    async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
+        objs = await client.address_objects.list()
+    assert len(objs) == 1
+    assert str(objs[0].host) == "10.0.0.100"
+
+
+@pytest.mark.asyncio
+async def test_list_skips_unparsable_host_entry(mock_sonicwall):
+    """list() should skip malformed entries instead of failing entire list."""
+    mock_sonicwall.get("/address-objects/ipv4").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": {"success": True, "info": []},
+                "address_objects": [
+                    {"address_object": {"ipv4": {"name": "broken", "zone": "LAN", "host": {}}}},
+                    {
+                        "address_object": {
+                            "ipv4": {"name": "good", "zone": "LAN", "host": {"ip": "10.0.0.2"}}
+                        }
+                    },
+                ],
+            },
+        )
+    )
+    async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
+        objs = await client.address_objects.list()
+    assert len(objs) == 1
+    assert objs[0].name == "good"
+
+
+@pytest.mark.asyncio
 async def test_get_existing_object(sonicwall_client):
     """get() should return the address object for a known name."""
     obj = await sonicwall_client.address_objects.get("my-server")
@@ -59,6 +107,25 @@ async def test_get_existing_object(sonicwall_client):
     assert obj.type == AddressObjectType.HOST
     assert str(obj.host) == "10.0.0.100"
     assert obj.zone == "LAN"
+
+
+@pytest.mark.asyncio
+async def test_get_handles_list_envelope_shape(mock_sonicwall):
+    """get() should parse firmware shape that returns address_objects list."""
+    mock_sonicwall.get("/address-objects/ipv4/name/my-server").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "address_objects": [
+                    {"ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.100"}}}
+                ]
+            },
+        )
+    )
+    async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
+        obj = await client.address_objects.get("my-server")
+    assert obj.name == "my-server"
+    assert str(obj.host) == "10.0.0.100"
 
 
 @pytest.mark.asyncio
@@ -90,7 +157,11 @@ async def test_create_new_object(mock_sonicwall):
         return_value=httpx.Response(
             200,
             json=make_single_response(
-                {"address_object": {"ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}}}
+                {
+                    "address_object": {
+                        "ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}
+                    }
+                }
             ),
         )
     )
@@ -100,6 +171,58 @@ async def test_create_new_object(mock_sonicwall):
 
     assert created.name == "new-host"
     assert str(created.host) == "192.168.1.50"
+
+
+@pytest.mark.asyncio
+async def test_create_retries_with_array_payload_on_schema_error(mock_sonicwall):
+    """create() should retry with address_objects[] payload on firmware schema error."""
+    calls = {"count": 0}
+
+    def create_handler(_: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return httpx.Response(
+                400,
+                json={
+                    "status": {
+                        "success": False,
+                        "info": [
+                            {
+                                "level": "error",
+                                "code": 400,
+                                "message": "Schema validation error: property 'address_objects' expected '['",
+                            }
+                        ],
+                    }
+                },
+            )
+        return httpx.Response(200, json=AUTH_SUCCESS_RESPONSE)
+
+    mock_sonicwall.post("/address-objects/ipv4").mock(side_effect=create_handler)
+    mock_sonicwall.get("/address-objects/ipv4/name/new-host").mock(
+        return_value=httpx.Response(
+            200,
+            json=make_single_response(
+                {
+                    "address_object": {
+                        "ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}
+                    }
+                }
+            ),
+        )
+    )
+
+    new_obj = AddressObject(
+        name="new-host",
+        type=AddressObjectType.HOST,
+        host="192.168.1.50",
+        zone="LAN",
+    )
+    async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
+        created = await client.address_objects.create(new_obj)
+
+    assert created.name == "new-host"
+    assert calls["count"] == 2
 
 
 @pytest.mark.asyncio
@@ -136,7 +259,11 @@ async def test_update_existing_object(mock_sonicwall):
         return_value=httpx.Response(
             200,
             json=make_single_response(
-                {"address_object": {"ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}}}
+                {
+                    "address_object": {
+                        "ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}
+                    }
+                }
             ),
         )
     )
@@ -184,7 +311,15 @@ async def test_ensure_creates_new_object(mock_sonicwall):
             httpx.Response(
                 200,
                 json=make_single_response(
-                    {"address_object": {"ipv4": {"name": "brand-new", "zone": "DMZ", "host": {"ip": "172.16.0.1"}}}}
+                    {
+                        "address_object": {
+                            "ipv4": {
+                                "name": "brand-new",
+                                "zone": "DMZ",
+                                "host": {"ip": "172.16.0.1"},
+                            }
+                        }
+                    }
                 ),
             ),
         ]
@@ -219,7 +354,15 @@ async def test_ensure_updates_existing_object(mock_sonicwall):
             httpx.Response(
                 200,
                 json=make_single_response(
-                    {"address_object": {"ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}}}
+                    {
+                        "address_object": {
+                            "ipv4": {
+                                "name": "my-server",
+                                "zone": "LAN",
+                                "host": {"ip": "10.0.0.200"},
+                            }
+                        }
+                    }
                 ),
             ),
         ]

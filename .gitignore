@@ -22,16 +22,33 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# Local pnpm tool cache (CI uses PNPM_CACHE_DIR)
+.pnpm-home/
+
+# Project-local uv binary (shell CI; UV_INSTALL_DIR)
+.uv-install/
+
+# Contract captures from local devices (optional tooling)
+packages/python/contract-captures/
+
 # Node / TypeScript
 node_modules/
 packages/typescript/dist/
+packages/typescript/coverage/
 packages/typescript/*.tsbuildinfo
 .turbo/
 .pnpm-store/
+.pnpm-tool/
+.pnpm-home/
+
+# Local contract captures (live device debugging)
+packages/python/contract-captures/
 
 # Go
 packages/go/bin/
 packages/go/vendor/
+.golangci-bin/
+.go-toolchain/
 
 # IDE
 .idea/
