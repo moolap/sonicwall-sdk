@@ -231,8 +231,8 @@ security:osv-scan:
     name: ${OSV_SCANNER_IMAGE}
     entrypoint: [""]
   script:
-    # V2 CLI — see https://google.github.io/osv-scanner/usage/
-    - osv-scanner scan -r "${CI_PROJECT_DIR}"
+    # Binary is /root/osv-scanner; not on PATH when entrypoint is cleared for GitLab's sh -c wrapper.
+    - /root/osv-scanner scan -r "${CI_PROJECT_DIR}"
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
