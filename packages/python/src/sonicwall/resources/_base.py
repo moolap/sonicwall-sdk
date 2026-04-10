@@ -19,9 +19,9 @@ class BaseResource:
     SonicOS list-unwrapping pattern and keep resource code concise.
     """
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         self._client = client
-        self._http = client._http_client  # noqa: SLF001
+        self._http = client._http_client
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return await self._http.request("GET", path, params=params)

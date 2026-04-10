@@ -31,12 +31,12 @@ class CommitContext:
         an outer transaction.
     """
 
-    def __init__(self, http_client: "HTTPClient", *, depth_tracker: list[int]) -> None:
+    def __init__(self, http_client: HTTPClient, *, depth_tracker: list[int]) -> None:
         self._http = http_client
         self._depth_tracker = depth_tracker
         self._entered_config_mode = False
 
-    async def __aenter__(self) -> "CommitContext":
+    async def __aenter__(self) -> CommitContext:
         self._depth_tracker[0] += 1
         logger.debug("Entering pending-config context (depth=%d)", self._depth_tracker[0])
         if self._depth_tracker[0] == 1:
@@ -63,9 +63,7 @@ class CommitContext:
                 await self._http.request("POST", "/config/pending")
                 logger.debug("Pending config committed successfully")
             except Exception as exc:
-                raise CommitError(
-                    f"Failed to commit pending configuration: {exc}"
-                ) from exc
+                raise CommitError(f"Failed to commit pending configuration: {exc}") from exc
         else:
             # Exception — roll back
             try:
@@ -102,7 +100,9 @@ class CommitContext:
             if await self._try_request(method, path):
                 logger.debug("Entered config mode via %s %s", method, path)
                 return True
-        logger.debug("Config mode enter endpoint not available; continuing without explicit mode switch")
+        logger.debug(
+            "Config mode enter endpoint not available; continuing without explicit mode switch"
+        )
         return False
 
     async def _exit_config_mode_if_needed(self) -> None:

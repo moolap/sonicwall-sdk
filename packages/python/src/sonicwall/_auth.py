@@ -25,6 +25,7 @@ _SESSION_EXPIRED_CODE = 1085
 # SonicWall TZ270 (SonicOS 7.x) requires auth-int, so we implement it here.
 # ---------------------------------------------------------------------------
 
+
 def _parse_digest_challenge(www_auth: str) -> dict[str, str]:
     """Parse a single WWW-Authenticate: Digest ... header into a dict."""
     # Strip leading 'Digest ' token
@@ -82,12 +83,14 @@ def _build_digest_auth_header(
 
     # Choose hash function
     if "SHA-256" in algorithm:
+
         def h(s: str) -> str:
             return hashlib.sha256(s.encode()).hexdigest()
 
         def hb(b: bytes) -> str:
             return hashlib.sha256(b).hexdigest()
     else:
+
         def h(s: str) -> str:
             return hashlib.md5(s.encode()).hexdigest()  # noqa: S324
 
@@ -111,7 +114,7 @@ def _build_digest_auth_header(
     header = (
         f'Digest username="{username}", realm="{realm}", '
         f'nonce="{nonce}", uri="{uri}", '
-        f'algorithm={algorithm}, '
+        f"algorithm={algorithm}, "
         f'qop=auth-int, nc={nc}, cnonce="{cnonce}", '
         f'response="{digest_response}"'
     )
@@ -123,6 +126,7 @@ def _build_digest_auth_header(
 # ---------------------------------------------------------------------------
 # Cookie / session helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_bearer_token(response: httpx.Response) -> str | None:
     """Extract the bearer_token from a successful SonicOS /auth response body."""
@@ -154,6 +158,7 @@ def _is_session_expired(response: httpx.Response) -> bool:
 # ---------------------------------------------------------------------------
 # AuthManager
 # ---------------------------------------------------------------------------
+
 
 class AuthManager:
     """Manages SonicOS session authentication.

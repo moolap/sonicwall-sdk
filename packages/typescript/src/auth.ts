@@ -6,7 +6,7 @@
  * via ky's beforeRequest hooks.
  */
 
-import type { BeforeRequestHook, KyInstance, Options } from "ky";
+import type { BeforeRequestHook, KyInstance } from "ky";
 import { AuthenticationError, SessionExpiredError } from "./errors.ts";
 
 export class AuthManager {
@@ -27,18 +27,6 @@ export class AuthManager {
 
   async authenticate(ky: KyInstance): Promise<void> {
     const credentials = btoa(`${this.username}:${this.password}`);
-    const response = await ky
-      .post("auth", {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          "Content-Type": "application/json",
-        },
-        body: "{}",
-        // Skip auth hook during auth itself
-        hooks: { beforeRequest: [] },
-      })
-      .json<Record<string, unknown>>();
-
     const respWithHeaders = await ky.post("auth", {
       headers: {
         Authorization: `Basic ${credentials}`,

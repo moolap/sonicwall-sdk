@@ -27,7 +27,7 @@ class DhcpResource(BaseResource):
 
     _BASE = "/dhcp/server/lease"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     async def list_leases(self) -> list[DhcpLease]:
@@ -65,7 +65,7 @@ class DhcpResource(BaseResource):
             for item in items:
                 try:
                     result.append(DhcpLease.from_api_response(item))
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logger.warning("Skipping unparsable DHCP lease item from %s: %r", path, item)
             return result
 

@@ -14,7 +14,7 @@ class PortRange(BaseModel):
     end: int = Field(..., ge=0, le=65535)
 
     @classmethod
-    def single(cls, port: int) -> "PortRange":
+    def single(cls, port: int) -> PortRange:
         return cls(begin=port, end=port)
 
 
@@ -71,7 +71,7 @@ class ServiceObject(BaseModel):
         }
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "ServiceObject":
+    def from_api_response(cls, data: dict[str, Any]) -> ServiceObject:
         """Parse from a SonicOS API response."""
         if "service_object" in data:
             data = data["service_object"]

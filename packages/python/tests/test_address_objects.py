@@ -2,24 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
-import respx
 import httpx
+import pytest
 
 from sonicwall import SonicWallClient
 from sonicwall._exceptions import ConflictError, NotFoundError
 from sonicwall.models import AddressObject, AddressObjectType
 from tests.conftest import (
-    HOST,
-    USERNAME,
-    PASSWORD,
-    BASE_URL,
-    AUTH_SUCCESS_RESPONSE,
     ADDR_OBJ_HOST_RAW,
-    ADDR_OBJ_NETWORK_RAW,
-    NOT_FOUND_RESPONSE,
+    AUTH_SUCCESS_RESPONSE,
     CONFLICT_RESPONSE,
-    make_list_response,
+    HOST,
+    NOT_FOUND_RESPONSE,
+    PASSWORD,
+    USERNAME,
     make_single_response,
 )
 
@@ -88,7 +84,11 @@ async def test_list_skips_unparsable_host_entry(mock_sonicwall):
                 "status": {"success": True, "info": []},
                 "address_objects": [
                     {"address_object": {"ipv4": {"name": "broken", "zone": "LAN", "host": {}}}},
-                    {"address_object": {"ipv4": {"name": "good", "zone": "LAN", "host": {"ip": "10.0.0.2"}}}},
+                    {
+                        "address_object": {
+                            "ipv4": {"name": "good", "zone": "LAN", "host": {"ip": "10.0.0.2"}}
+                        }
+                    },
                 ],
             },
         )
@@ -157,7 +157,11 @@ async def test_create_new_object(mock_sonicwall):
         return_value=httpx.Response(
             200,
             json=make_single_response(
-                {"address_object": {"ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}}}
+                {
+                    "address_object": {
+                        "ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}
+                    }
+                }
             ),
         )
     )
@@ -199,7 +203,11 @@ async def test_create_retries_with_array_payload_on_schema_error(mock_sonicwall)
         return_value=httpx.Response(
             200,
             json=make_single_response(
-                {"address_object": {"ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}}}
+                {
+                    "address_object": {
+                        "ipv4": {"name": "new-host", "zone": "LAN", "host": {"ip": "192.168.1.50"}}
+                    }
+                }
             ),
         )
     )
@@ -251,7 +259,11 @@ async def test_update_existing_object(mock_sonicwall):
         return_value=httpx.Response(
             200,
             json=make_single_response(
-                {"address_object": {"ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}}}
+                {
+                    "address_object": {
+                        "ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}
+                    }
+                }
             ),
         )
     )
@@ -299,7 +311,15 @@ async def test_ensure_creates_new_object(mock_sonicwall):
             httpx.Response(
                 200,
                 json=make_single_response(
-                    {"address_object": {"ipv4": {"name": "brand-new", "zone": "DMZ", "host": {"ip": "172.16.0.1"}}}}
+                    {
+                        "address_object": {
+                            "ipv4": {
+                                "name": "brand-new",
+                                "zone": "DMZ",
+                                "host": {"ip": "172.16.0.1"},
+                            }
+                        }
+                    }
                 ),
             ),
         ]
@@ -334,7 +354,15 @@ async def test_ensure_updates_existing_object(mock_sonicwall):
             httpx.Response(
                 200,
                 json=make_single_response(
-                    {"address_object": {"ipv4": {"name": "my-server", "zone": "LAN", "host": {"ip": "10.0.0.200"}}}}
+                    {
+                        "address_object": {
+                            "ipv4": {
+                                "name": "my-server",
+                                "zone": "LAN",
+                                "host": {"ip": "10.0.0.200"},
+                            }
+                        }
+                    }
                 ),
             ),
         ]

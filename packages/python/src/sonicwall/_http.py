@@ -122,8 +122,8 @@ class HTTPClient:
             headers["Content-Type"] = "application/json"
 
         # Inject bearer token
-        if self._auth._bearer_token:  # noqa: SLF001
-            headers["Authorization"] = f"Bearer {self._auth._bearer_token}"  # noqa: SLF001
+        if self._auth._bearer_token:
+            headers["Authorization"] = f"Bearer {self._auth._bearer_token}"
 
         try:
             return await self._client.request(
@@ -222,7 +222,7 @@ class HTTPClient:
     def _safe_json(response: httpx.Response) -> dict[str, Any]:
         try:
             return response.json()  # type: ignore[no-any-return]
-        except Exception:  # noqa: BLE001
+        except Exception:
             return {}
 
     async def aclose(self) -> None:

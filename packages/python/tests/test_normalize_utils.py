@@ -22,5 +22,7 @@ def test_normalize_get_from_plural_uses_predicate_match() -> None:
 
 
 def test_unwrap_ipv4_handles_wrapped_and_direct() -> None:
-    assert unwrap_ipv4({"address_object": {"ipv4": {"name": "x"}}}, "address_object") == {"name": "x"}
+    assert unwrap_ipv4({"address_object": {"ipv4": {"name": "x"}}}, "address_object") == {
+        "name": "x"
+    }
     assert unwrap_ipv4({"ipv4": {"name": "y"}}, "address_object") == {"name": "y"}

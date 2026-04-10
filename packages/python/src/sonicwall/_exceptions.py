@@ -82,7 +82,7 @@ class RollbackError(SonicWallError):
         super().__init__(message)
 
 
-class ConnectionError(SonicWallError):  # noqa: A001
+class ConnectionError(SonicWallError):
     """Raised when a network connection to the SonicWall cannot be established."""
 
 

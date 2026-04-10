@@ -7,7 +7,7 @@ import pytest
 import respx
 
 from sonicwall import SonicWallClient
-from tests.conftest import AUTH_SUCCESS_RESPONSE, BASE_URL, HOST, USERNAME, PASSWORD
+from tests.conftest import AUTH_SUCCESS_RESPONSE, BASE_URL, HOST, PASSWORD, USERNAME
 
 
 @pytest.mark.asyncio
@@ -21,7 +21,12 @@ async def test_dhcp_list_leases_fallback_endpoint_and_key() -> None:
             if auth_calls["count"] % 2 == 1:
                 return httpx.Response(
                     401,
-                    json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                    json={
+                        "status": {
+                            "success": False,
+                            "info": [{"code": 401, "message": "Unauthorized"}],
+                        }
+                    },
                     headers={
                         "WWW-Authenticate": (
                             'Digest realm="sonicwall", nonce="abc123", '
@@ -38,7 +43,12 @@ async def test_dhcp_list_leases_fallback_endpoint_and_key() -> None:
         router.get("/dhcp/server/lease").mock(
             return_value=httpx.Response(
                 404,
-                json={"status": {"success": False, "info": [{"code": "E_NOT_FOUND", "message": "API not found."}]}},
+                json={
+                    "status": {
+                        "success": False,
+                        "info": [{"code": "E_NOT_FOUND", "message": "API not found."}],
+                    }
+                },
             )
         )
         router.get("/dhcp/server/leases").mock(

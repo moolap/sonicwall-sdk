@@ -25,7 +25,7 @@ class ServiceObjectsResource(BaseResource):
 
     _BASE = "/service-objects"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     @staticmethod
@@ -116,8 +116,11 @@ class ServiceObjectsResource(BaseResource):
                 await self._post(self._BASE, self._to_firmware_collection_payload(obj))
         try:
             return await self.get(obj.name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Create succeeded but service-object get parse failed; returning input object: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Create succeeded but service-object get parse failed; returning input object: %s",
+                exc,
+            )
             return obj
 
     async def update(self, name: str, obj: ServiceObject) -> ServiceObject:
@@ -140,8 +143,11 @@ class ServiceObjectsResource(BaseResource):
                 await self._put(path, self._to_firmware_collection_payload(obj))
         try:
             return await self.get(obj.name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Update succeeded but service-object get parse failed; returning input object: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Update succeeded but service-object get parse failed; returning input object: %s",
+                exc,
+            )
             return obj
 
     async def delete(self, name: str) -> None:

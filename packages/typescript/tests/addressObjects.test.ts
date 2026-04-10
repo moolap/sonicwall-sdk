@@ -11,8 +11,6 @@ import { server } from "./mocks/server.ts";
 import {
   BASE,
   ADDR_OBJ_HOST,
-  ADDR_OBJ_NETWORK,
-  makeListResponse,
   makeSingleResponse,
   NOT_FOUND_RESPONSE,
   CONFLICT_RESPONSE,

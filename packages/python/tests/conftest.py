@@ -51,7 +51,10 @@ AUTH_SUCCESS_RESPONSE = {
 }
 
 COMMIT_SUCCESS_RESPONSE = {
-    "status": {"success": True, "info": [{"level": "info", "code": 200, "message": "Changes committed."}]}
+    "status": {
+        "success": True,
+        "info": [{"level": "info", "code": 200, "message": "Changes committed."}],
+    }
 }
 
 NOT_FOUND_RESPONSE = {
@@ -105,7 +108,12 @@ def mock_sonicwall():
             if auth_calls["count"] % 2 == 1:
                 return httpx.Response(
                     401,
-                    json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                    json={
+                        "status": {
+                            "success": False,
+                            "info": [{"code": 401, "message": "Unauthorized"}],
+                        }
+                    },
                     headers={
                         "WWW-Authenticate": (
                             'Digest realm="sonicwall", nonce="abc123", '
@@ -118,9 +126,7 @@ def mock_sonicwall():
         router.post("/auth").mock(side_effect=auth_handler)
 
         # Auth logout — DELETE /auth
-        router.delete("/auth").mock(
-            return_value=httpx.Response(200, json=AUTH_SUCCESS_RESPONSE)
-        )
+        router.delete("/auth").mock(return_value=httpx.Response(200, json=AUTH_SUCCESS_RESPONSE))
 
         # Commit — POST /config/pending
         router.post("/config/pending").mock(

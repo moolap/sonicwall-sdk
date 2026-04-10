@@ -54,13 +54,15 @@ class AddressObject(BaseModel):
         alias="range-end",
         description="Range end address (when type=range)",
     )
-    fqdn: str | None = Field(default=None, description="Fully qualified domain name (when type=fqdn)")
+    fqdn: str | None = Field(
+        default=None, description="Fully qualified domain name (when type=fqdn)"
+    )
     mac: str | None = Field(default=None, description="MAC address (when type=mac)")
 
     model_config = {"populate_by_name": True}
 
     @model_validator(mode="after")
-    def validate_type_fields(self) -> "AddressObject":
+    def validate_type_fields(self) -> AddressObject:
         """Ensure the correct field is populated for the given type."""
         if self.type == AddressObjectType.HOST and self.host is None:
             raise ValueError("'host' IP address is required when type is 'host'")
@@ -69,9 +71,7 @@ class AddressObject(BaseModel):
         if self.type == AddressObjectType.RANGE and (
             self.range_start is None or self.range_end is None
         ):
-            raise ValueError(
-                "'range_start' and 'range_end' are required when type is 'range'"
-            )
+            raise ValueError("'range_start' and 'range_end' are required when type is 'range'")
         if self.type == AddressObjectType.FQDN and not self.fqdn:
             raise ValueError("'fqdn' is required when type is 'fqdn'")
         if self.type == AddressObjectType.MAC and not self.mac:
@@ -116,7 +116,7 @@ class AddressObject(BaseModel):
         return {"address_object": {"ipv4": inner}}
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "AddressObject":
+    def from_api_response(cls, data: dict[str, Any]) -> AddressObject:
         """Parse from a SonicOS API response (envelope or raw ipv4 dict)."""
         # Navigate envelope layers: {address_object: {ipv4: {...}}}
         if "address_object" in data:

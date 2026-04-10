@@ -34,12 +34,8 @@ class Interface(BaseModel):
     """
 
     name: str = Field(..., description="Interface name, e.g. X0, X1, X2")
-    ip_assignment: IPAssignment | None = Field(
-        default=None, description="IP assignment method"
-    )
-    ip: ipaddress.IPv4Address | None = Field(
-        default=None, description="Static IP address"
-    )
+    ip_assignment: IPAssignment | None = Field(default=None, description="IP assignment method")
+    ip: ipaddress.IPv4Address | None = Field(default=None, description="Static IP address")
     subnet: ipaddress.IPv4Address | None = Field(
         default=None, description="Subnet mask in dotted-decimal"
     )
@@ -57,7 +53,7 @@ class Interface(BaseModel):
         return None
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "Interface":
+    def from_api_response(cls, data: dict[str, Any]) -> Interface:
         """Parse from a SonicOS API response."""
         if "interface" in data:
             data = data["interface"]

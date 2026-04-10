@@ -25,7 +25,7 @@ class NatPoliciesResource(BaseResource):
 
     _BASE = "/nat-policies/ipv4"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     @staticmethod
@@ -52,7 +52,9 @@ class NatPoliciesResource(BaseResource):
                         "inbound": policy.inbound_interface,
                         "outbound": policy.outbound_interface,
                         "source": cls._ref_obj(policy.original_source),
-                        "translated_source": cls._ref_obj(policy.translated_source, allow_original=True),
+                        "translated_source": cls._ref_obj(
+                            policy.translated_source, allow_original=True
+                        ),
                         "destination": cls._ref_obj(policy.original_destination),
                         "translated_destination": cls._ref_obj(
                             policy.translated_destination, allow_original=True
@@ -115,8 +117,7 @@ class NatPoliciesResource(BaseResource):
             plural_key="nat_policies",
             singular_key="nat_policy",
             predicate=lambda item: (
-                (ipv4 := unwrap_ipv4(item, "nat_policy")) is not None
-                and ipv4.get("name") == name
+                (ipv4 := unwrap_ipv4(item, "nat_policy")) is not None and ipv4.get("name") == name
             ),
         )
 
@@ -129,7 +130,7 @@ class NatPoliciesResource(BaseResource):
         payload = policy.to_api_dict()
         try:
             await self._post(self._BASE, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if not self._is_schema_array_error(exc):
                 raise
             try:
@@ -139,8 +140,10 @@ class NatPoliciesResource(BaseResource):
         if policy.name:
             try:
                 return await self.get(policy.name)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Create succeeded but NAT get parse failed; returning input policy: %s", exc)
+            except Exception as exc:
+                logger.warning(
+                    "Create succeeded but NAT get parse failed; returning input policy: %s", exc
+                )
         return policy
 
     async def update(self, name: str, policy: NatPolicy) -> NatPolicy:
@@ -158,7 +161,7 @@ class NatPoliciesResource(BaseResource):
         payload = policy.to_api_dict()
         try:
             await self._put(path, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if not self._is_schema_array_error(exc):
                 raise
             try:
@@ -168,8 +171,10 @@ class NatPoliciesResource(BaseResource):
         effective_name = policy.name or name
         try:
             return await self.get(effective_name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Update succeeded but NAT get parse failed; returning input policy: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Update succeeded but NAT get parse failed; returning input policy: %s", exc
+            )
             return policy
 
     async def delete(self, name: str) -> None:

@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from collections.abc import Coroutine
+from concurrent.futures import Future
 from types import TracebackType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
-
-import anyio
-import anyio.from_thread
 
 from ._auth import AuthManager
 from ._commit import CommitContext
@@ -97,14 +96,14 @@ class SonicWallClient:
 
     async def connect(self) -> None:
         """Authenticate and establish a session."""
-        await self._auth.authenticate(self._http._client)  # noqa: SLF001
+        await self._auth.authenticate(self._http._client)
 
     async def disconnect(self) -> None:
         """Log out and close the HTTP connection."""
-        await self._auth.logout(self._http._client)  # noqa: SLF001
+        await self._auth.logout(self._http._client)
         await self._http.aclose()
 
-    async def __aenter__(self) -> "SonicWallClient":
+    async def __aenter__(self) -> SonicWallClient:
         await self.connect()
         return self
 
@@ -142,44 +141,50 @@ class SonicWallClient:
     # --- Resources (lazy singletons) ---
 
     @property
-    def address_objects(self) -> "AddressObjectsResource":
+    def address_objects(self) -> AddressObjectsResource:
         if self._address_objects is None:
             from .resources.address_objects import AddressObjectsResource
+
             self._address_objects = AddressObjectsResource(self)
         return self._address_objects
 
     @property
-    def access_rules(self) -> "AccessRulesResource":
+    def access_rules(self) -> AccessRulesResource:
         if self._access_rules is None:
             from .resources.access_rules import AccessRulesResource
+
             self._access_rules = AccessRulesResource(self)
         return self._access_rules
 
     @property
-    def interfaces(self) -> "InterfacesResource":
+    def interfaces(self) -> InterfacesResource:
         if self._interfaces is None:
             from .resources.interfaces import InterfacesResource
+
             self._interfaces = InterfacesResource(self)
         return self._interfaces
 
     @property
-    def nat_policies(self) -> "NatPoliciesResource":
+    def nat_policies(self) -> NatPoliciesResource:
         if self._nat_policies is None:
             from .resources.nat_policies import NatPoliciesResource
+
             self._nat_policies = NatPoliciesResource(self)
         return self._nat_policies
 
     @property
-    def service_objects(self) -> "ServiceObjectsResource":
+    def service_objects(self) -> ServiceObjectsResource:
         if self._service_objects is None:
             from .resources.service_objects import ServiceObjectsResource
+
             self._service_objects = ServiceObjectsResource(self)
         return self._service_objects
 
     @property
-    def dhcp(self) -> "DhcpResource":
+    def dhcp(self) -> DhcpResource:
         if self._dhcp is None:
             from .resources.dhcp import DhcpResource
+
             self._dhcp = DhcpResource(self)
         return self._dhcp
 
@@ -227,11 +232,10 @@ class SonicWallClientSync:
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
 
-    def _run(self, coro: object) -> object:  # type: ignore[type-arg]
+    def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
         """Submit a coroutine to the background event loop and wait for result."""
-        import concurrent.futures
         assert self._loop is not None
-        future = asyncio.run_coroutine_threadsafe(coro, self._loop)  # type: ignore[arg-type]
+        future: Future[Any] = asyncio.run_coroutine_threadsafe(coro, self._loop)
         return future.result()
 
     def connect(self) -> None:
@@ -240,6 +244,7 @@ class SonicWallClientSync:
         # Wait until the loop is actually running
         while self._loop is None or not self._loop.is_running():
             import time
+
             time.sleep(0.01)
         self._run(self._async_client.connect())
 
@@ -248,7 +253,7 @@ class SonicWallClientSync:
         if self._loop:
             self._loop.call_soon_threadsafe(self._loop.stop)
 
-    def __enter__(self) -> "SonicWallClientSync":
+    def __enter__(self) -> SonicWallClientSync:
         self.connect()
         return self
 
@@ -267,27 +272,27 @@ class SonicWallClientSync:
         self._run(self._async_client.rollback())
 
     @property
-    def address_objects(self) -> "_SyncAddressObjectsResource":
+    def address_objects(self) -> _SyncAddressObjectsResource:
         return _SyncAddressObjectsResource(self._async_client.address_objects, self._run)
 
     @property
-    def access_rules(self) -> "_SyncAccessRulesResource":
+    def access_rules(self) -> _SyncAccessRulesResource:
         return _SyncAccessRulesResource(self._async_client.access_rules, self._run)
 
     @property
-    def interfaces(self) -> "_SyncInterfacesResource":
+    def interfaces(self) -> _SyncInterfacesResource:
         return _SyncInterfacesResource(self._async_client.interfaces, self._run)
 
     @property
-    def nat_policies(self) -> "_SyncNatPoliciesResource":
+    def nat_policies(self) -> _SyncNatPoliciesResource:
         return _SyncNatPoliciesResource(self._async_client.nat_policies, self._run)
 
     @property
-    def service_objects(self) -> "_SyncServiceObjectsResource":
+    def service_objects(self) -> _SyncServiceObjectsResource:
         return _SyncServiceObjectsResource(self._async_client.service_objects, self._run)
 
     @property
-    def dhcp(self) -> "_SyncDhcpResource":
+    def dhcp(self) -> _SyncDhcpResource:
         return _SyncDhcpResource(self._async_client.dhcp, self._run)
 
 
@@ -295,7 +300,7 @@ class SonicWallClientSync:
 # Sync resource shims
 # ---------------------------------------------------------------------------
 
-from typing import Any, Callable  # noqa: E402
+from collections.abc import Callable  # noqa: E402
 
 
 class _SyncResourceBase:

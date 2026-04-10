@@ -41,11 +41,17 @@ async def test_service_object_create_schema_fallback(mock_sonicwall) -> None:
     mock_sonicwall.get("/service-objects/name/sdk-svc").mock(
         return_value=httpx.Response(
             200,
-            json={"service_objects": [{"name": "sdk-svc", "protocol": {"tcp": {"begin": 65000, "end": 65000}}}]},
+            json={
+                "service_objects": [
+                    {"name": "sdk-svc", "protocol": {"tcp": {"begin": 65000, "end": 65000}}}
+                ]
+            },
         )
     )
 
-    obj = ServiceObject(name="sdk-svc", protocol=ServiceProtocol(tcp=PortRange(begin=65000, end=65000)))
+    obj = ServiceObject(
+        name="sdk-svc", protocol=ServiceProtocol(tcp=PortRange(begin=65000, end=65000))
+    )
     async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
         await client.service_objects.create(obj)
     assert calls["count"] == 2
@@ -65,7 +71,24 @@ async def test_nat_policy_create_schema_fallback(mock_sonicwall) -> None:
     mock_sonicwall.get("/nat-policies/ipv4/name/sdk-nat").mock(
         return_value=httpx.Response(
             200,
-            json={"nat_policies": [{"ipv4": {"name": "sdk-nat", "inbound": "any", "outbound": "X1", "source": {"any": True}, "translated_source": {"original": True}, "destination": {"any": True}, "translated_destination": {"original": True}, "service": {"any": True}, "translated_service": {"original": True}, "enable": True}}]},
+            json={
+                "nat_policies": [
+                    {
+                        "ipv4": {
+                            "name": "sdk-nat",
+                            "inbound": "any",
+                            "outbound": "X1",
+                            "source": {"any": True},
+                            "translated_source": {"original": True},
+                            "destination": {"any": True},
+                            "translated_destination": {"original": True},
+                            "service": {"any": True},
+                            "translated_service": {"original": True},
+                            "enable": True,
+                        }
+                    }
+                ]
+            },
         )
     )
 
@@ -99,7 +122,11 @@ async def test_access_rule_create_schema_fallback(mock_sonicwall) -> None:
     mock_sonicwall.get("/access-rules/ipv4/from/LAN/to/WAN/name/sdk-rule").mock(
         return_value=httpx.Response(
             200,
-            json={"access_rules": [{"ipv4": {"name": "sdk-rule", "from": "LAN", "to": "WAN", "action": "deny"}}]},
+            json={
+                "access_rules": [
+                    {"ipv4": {"name": "sdk-rule", "from": "LAN", "to": "WAN", "action": "deny"}}
+                ]
+            },
         )
     )
 

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any, cast
 
 
 def normalize_get_from_plural(
@@ -46,7 +47,7 @@ def unwrap_ipv4(item: dict[str, Any], wrapped_key: str) -> dict[str, Any] | None
         ipv4 = inner.get("ipv4")
         if isinstance(ipv4, dict):
             return ipv4
-        return inner
+        return cast(dict[str, Any], inner)
     ipv4 = item.get("ipv4")
     if isinstance(ipv4, dict):
         return ipv4

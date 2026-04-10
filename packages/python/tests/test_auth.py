@@ -31,7 +31,12 @@ async def test_successful_auth_sets_bearer_token():
             if call_count == 1:
                 return httpx.Response(
                     401,
-                    json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                    json={
+                        "status": {
+                            "success": False,
+                            "info": [{"code": 401, "message": "Unauthorized"}],
+                        }
+                    },
                     headers={
                         "WWW-Authenticate": (
                             'Digest realm="sonicwall", nonce="abc123", '
@@ -45,8 +50,8 @@ async def test_successful_auth_sets_bearer_token():
         router.delete("/auth").mock(return_value=httpx.Response(200, json=AUTH_SUCCESS_RESPONSE))
 
         async with SonicWallClient(HOST, USERNAME, PASSWORD) as client:
-            assert client._auth.is_authenticated  # noqa: SLF001
-            assert client._auth._bearer_token == BEARER_TOKEN  # noqa: SLF001
+            assert client._auth.is_authenticated
+            assert client._auth._bearer_token == BEARER_TOKEN
             assert call_count == 2
 
 
@@ -57,7 +62,9 @@ async def test_auth_failure_without_digest_challenge_raises():
         router.post("/auth").mock(
             return_value=httpx.Response(
                 500,
-                json={"status": {"success": False, "info": [{"code": 500, "message": "Server error"}]}},
+                json={
+                    "status": {"success": False, "info": [{"code": 500, "message": "Server error"}]}
+                },
             )
         )
 
@@ -76,8 +83,15 @@ async def test_auth_failure_raises_authentication_error():
         router.post("/auth").mock(
             return_value=httpx.Response(
                 401,
-                json={"status": {"success": False, "info": [{"code": 401, "message": "Invalid credentials"}]}},
-                headers={"WWW-Authenticate": 'Digest realm="sonicwall", nonce="abc123", qop="auth"'},
+                json={
+                    "status": {
+                        "success": False,
+                        "info": [{"code": 401, "message": "Invalid credentials"}],
+                    }
+                },
+                headers={
+                    "WWW-Authenticate": 'Digest realm="sonicwall", nonce="abc123", qop="auth"'
+                },
             )
         )
 
@@ -100,7 +114,9 @@ async def test_401_on_request_triggers_reauth(mock_sonicwall):
         if call_count % 2 == 1:
             return httpx.Response(
                 401,
-                json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                json={
+                    "status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}
+                },
                 headers={
                     "WWW-Authenticate": (
                         f'Digest realm="sonicwall", nonce="nonce-{call_count}", '
@@ -122,7 +138,9 @@ async def test_401_on_request_triggers_reauth(mock_sonicwall):
         if list_call_count == 1:
             return httpx.Response(
                 401,
-                json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                json={
+                    "status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}
+                },
             )
         return httpx.Response(
             200,
@@ -155,7 +173,12 @@ async def test_repeated_401_raises_authentication_error():
             if call_count % 2 == 1:
                 return httpx.Response(
                     401,
-                    json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                    json={
+                        "status": {
+                            "success": False,
+                            "info": [{"code": 401, "message": "Unauthorized"}],
+                        }
+                    },
                     headers={
                         "WWW-Authenticate": (
                             f'Digest realm="sonicwall", nonce="nonce-{call_count}", '
@@ -171,7 +194,9 @@ async def test_repeated_401_raises_authentication_error():
         router.get("/address-objects/ipv4").mock(
             return_value=httpx.Response(
                 401,
-                json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                json={
+                    "status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}
+                },
             )
         )
 
@@ -192,7 +217,12 @@ async def test_session_expired_code_raises_session_expired_error():
             if call_count % 2 == 1:
                 return httpx.Response(
                     401,
-                    json={"status": {"success": False, "info": [{"code": 401, "message": "Unauthorized"}]}},
+                    json={
+                        "status": {
+                            "success": False,
+                            "info": [{"code": 401, "message": "Unauthorized"}],
+                        }
+                    },
                     headers={
                         "WWW-Authenticate": (
                             f'Digest realm="sonicwall", nonce="nonce-{call_count}", '
@@ -229,7 +259,8 @@ async def test_logout_calls_delete_auth(mock_sonicwall):
 
     # Verify DELETE /auth was called
     delete_calls = [
-        call for call in mock_sonicwall.calls
+        call
+        for call in mock_sonicwall.calls
         if call.request.method == "DELETE" and "/auth" in call.request.url.path
     ]
     assert len(delete_calls) == 1

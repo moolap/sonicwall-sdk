@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 from .._exceptions import NotFoundError, SonicWallHTTPError
 from ..models.address_object import AddressObject
-from ._normalize import normalize_get_from_plural, unwrap_ipv4
 from ._base import BaseResource
+from ._normalize import normalize_get_from_plural, unwrap_ipv4
 
 if TYPE_CHECKING:
     from .._client import SonicWallClient
@@ -25,14 +25,15 @@ class AddressObjectsResource(BaseResource):
 
     _BASE = "/address-objects/ipv4"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     @staticmethod
-    def _to_collection_payload(obj: AddressObject) -> dict:
+    def _to_collection_payload(obj: AddressObject) -> dict[str, Any]:
         """Build firmware-variant payload expected as address_objects array."""
         single = obj.to_api_dict()
-        item = single.get("address_object", {})
+        raw = single.get("address_object", {})
+        item: dict[str, Any] = raw if isinstance(raw, dict) else {}
         return {"address_objects": [item]}
 
     @staticmethod
@@ -99,8 +100,10 @@ class AddressObjectsResource(BaseResource):
         # SonicOS may not return stable get-by-name envelopes on all firmware.
         try:
             return await self.get(obj.name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Create succeeded but get-by-name parse failed; returning input object: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Create succeeded but get-by-name parse failed; returning input object: %s", exc
+            )
             return obj
 
     async def update(self, name: str, obj: AddressObject) -> AddressObject:
@@ -126,8 +129,10 @@ class AddressObjectsResource(BaseResource):
             )
         try:
             return await self.get(obj.name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Update succeeded but get-by-name parse failed; returning input object: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Update succeeded but get-by-name parse failed; returning input object: %s", exc
+            )
             return obj
 
     async def delete(self, name: str) -> None:
@@ -147,7 +152,7 @@ class AddressObjectsResource(BaseResource):
             the object was newly created, or False if it was updated.
         """
         try:
-            existing = await self.get(obj.name)
+            await self.get(obj.name)
             # Object exists — update it
             updated = await self.update(obj.name, obj)
             return updated, False

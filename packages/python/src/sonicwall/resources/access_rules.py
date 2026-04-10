@@ -32,7 +32,7 @@ class AccessRulesResource(BaseResource):
 
     _BASE = "/access-rules/ipv4"
 
-    def __init__(self, client: "SonicWallClient") -> None:
+    def __init__(self, client: SonicWallClient) -> None:
         super().__init__(client)
 
     @staticmethod
@@ -77,7 +77,9 @@ class AccessRulesResource(BaseResource):
         path = f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}"
         try:
             response = await self._get(path)
-            response = self._normalize_get_response(response, from_zone=from_zone, to_zone=to_zone, name=name)
+            response = self._normalize_get_response(
+                response, from_zone=from_zone, to_zone=to_zone, name=name
+            )
             return AccessRule.from_api_response(response)
         except NotFoundError:
             pass
@@ -89,7 +91,9 @@ class AccessRulesResource(BaseResource):
         for rule in rules:
             if rule.from_zone == from_zone and rule.to_zone == to_zone and rule.name == name:
                 return rule
-        raise NotFoundError(status_code=404, message=f"Access rule not found: {from_zone}->{to_zone}:{name}")
+        raise NotFoundError(
+            status_code=404, message=f"Access rule not found: {from_zone}->{to_zone}:{name}"
+        )
 
     @staticmethod
     def _normalize_get_response(
@@ -126,13 +130,14 @@ class AccessRulesResource(BaseResource):
         if rule.name:
             try:
                 return await self.get(rule.from_zone, rule.to_zone, rule.name)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Create succeeded but access-rule get parse failed; returning input rule: %s", exc)
+            except Exception as exc:
+                logger.warning(
+                    "Create succeeded but access-rule get parse failed; returning input rule: %s",
+                    exc,
+                )
         return rule
 
-    async def update(
-        self, from_zone: str, to_zone: str, name: str, rule: AccessRule
-    ) -> AccessRule:
+    async def update(self, from_zone: str, to_zone: str, name: str, rule: AccessRule) -> AccessRule:
         """Update an existing access rule.
 
         Args:
@@ -158,8 +163,10 @@ class AccessRulesResource(BaseResource):
         effective_name = rule.name or name
         try:
             return await self.get(rule.from_zone, rule.to_zone, effective_name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Update succeeded but access-rule get parse failed; returning input rule: %s", exc)
+        except Exception as exc:
+            logger.warning(
+                "Update succeeded but access-rule get parse failed; returning input rule: %s", exc
+            )
             return rule
 
     async def delete(self, from_zone: str, to_zone: str, name: str) -> None:
@@ -171,9 +178,7 @@ class AccessRulesResource(BaseResource):
         from_enc = urllib.parse.quote(from_zone, safe="")
         to_enc = urllib.parse.quote(to_zone, safe="")
         name_enc = urllib.parse.quote(name, safe="")
-        await self._delete(
-            f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}"
-        )
+        await self._delete(f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}")
 
     async def insert_before(self, rule: AccessRule, before_name: str) -> AccessRule:
         """Insert a new access rule immediately before the named existing rule.
@@ -196,6 +201,7 @@ class AccessRulesResource(BaseResource):
             target = await self.get(rule.from_zone, rule.to_zone, before_name)
             if not target.priority.auto and target.priority.value is not None:
                 from ..models.access_rule import RulePriority
+
                 rule = rule.model_copy(
                     update={"priority": RulePriority(auto=False, value=target.priority.value)}
                 )
@@ -217,10 +223,9 @@ class AccessRulesResource(BaseResource):
             target = await self.get(rule.from_zone, rule.to_zone, after_name)
             if not target.priority.auto and target.priority.value is not None:
                 from ..models.access_rule import RulePriority
+
                 rule = rule.model_copy(
-                    update={
-                        "priority": RulePriority(auto=False, value=target.priority.value + 1)
-                    }
+                    update={"priority": RulePriority(auto=False, value=target.priority.value + 1)}
                 )
         except NotFoundError:
             pass

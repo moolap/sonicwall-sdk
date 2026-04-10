@@ -119,7 +119,7 @@ export function fromApiResponse(data: Record<string, unknown>): AddressObject {
     inner = (inner.ipv4 as Record<string, unknown>);
   }
 
-  const wire = inner as AddressObjectIPv4Wire;
+  const wire = inner as unknown as AddressObjectIPv4Wire;
   const base = { name: wire.name, zone: wire.zone ?? "LAN" };
 
   if (wire.host) {
