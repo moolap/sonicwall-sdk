@@ -47,6 +47,7 @@ packages/python/contract-captures/
 # Go
 packages/go/bin/
 packages/go/vendor/
+.golangci-bin/
 
 # IDE
 .idea/

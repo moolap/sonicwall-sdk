@@ -38,6 +38,7 @@ variables:
     key: "go-${CI_COMMIT_REF_SLUG}"
     paths:
       - .go/pkg/mod/
+      - .golangci-bin/
 
 # === LINT ===
 
@@ -76,13 +77,20 @@ go:lint:
   image: ${GO_IMAGE}
   <<: *go-cache
   before_script:
-    # Shell executors ignore `image:` — only use apk inside Alpine containers.
+    # Shell executors: cannot write /usr/local/bin (e.g. macOS gitlab-runner). Install into the project.
     - |
-      if command -v apk >/dev/null 2>&1; then
-        apk add --no-cache curl
+      set -e
+      export GOLANGCI_LINT_BIN="${CI_PROJECT_DIR}/.golangci-bin"
+      mkdir -p "$GOLANGCI_LINT_BIN"
+      export PATH="${GOLANGCI_LINT_BIN}:${PATH}"
+      if [ ! -x "${GOLANGCI_LINT_BIN}/golangci-lint" ]; then
+        if command -v apk >/dev/null 2>&1; then
+          apk add --no-cache curl
+        fi
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$GOLANGCI_LINT_BIN" v1.60.3
       fi
-    - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.60.3
   script:
+    - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
     - cd packages/go && golangci-lint run ./...
   rules:
     - when: always
