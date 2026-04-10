@@ -26,6 +26,7 @@ compatibility pass and what remains for the next implementation cycle.
 - Added endpoint support documentation:
   - `docs/endpoint-support-matrix.md`
   - `docs/release-readiness.md`
+  - `docs/endpoint-support-status.json` + `generate_endpoint_support_matrix.py`
 
 ## Validated on target firmware/device
 
@@ -40,6 +41,6 @@ compatibility pass and what remains for the next implementation cycle.
 - Live-validate write CRUD for access rules.
 - Live-validate write CRUD for NAT policies.
 - Live-validate write CRUD for service objects.
-- Build shared response normalization utilities across resources.
-- Auto-generate endpoint support matrix from contract captures.
-- Port critical Python compatibility fallbacks to TypeScript and Go SDKs.
+- Build shared response normalization utilities across resources. (Done)
+- Auto-generate endpoint support matrix from contract captures/spec data. (Done for spec + status JSON; contract ingestion remains future enhancement)
+- Port critical Python compatibility fallbacks to TypeScript and Go SDKs. (In progress)

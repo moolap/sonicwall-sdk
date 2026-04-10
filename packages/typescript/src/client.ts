@@ -41,7 +41,7 @@ export class SonicWallClient {
   private _pendingDepth = 0;
 
   constructor(private readonly options: SonicWallClientOptions) {
-    const baseUrl = `https://${options.host}/api/sonicos/`;
+    const baseUrl = `${this.normalizeBaseHost(options.host)}/api/sonicos/`;
     this.auth = new AuthManager(baseUrl, options.username, options.password);
 
     this._ky = ky.create({
@@ -220,5 +220,13 @@ export class SonicWallClient {
     }
     if (err instanceof Error) return err;
     return new Error(String(err));
+  }
+
+  private normalizeBaseHost(host: string): string {
+    const trimmed = host.trim().replace(/\/+$/, "");
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
   }
 }

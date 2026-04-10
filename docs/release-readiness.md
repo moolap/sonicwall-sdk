@@ -20,6 +20,8 @@ Use this checklist before adopting a new SDK version in production.
 
 - [ ] Run smoke test against a non-production SonicWall:
   `cd packages/python && uv run ../../smoke_test.py --host <host> --user <user> --password <pass>`
+- [ ] Run write-CRUD validation for access rules/NAT/service objects:
+  `cd packages/python && uv run ../../validate_write_crud.py --host <host> --user <user> --password <pass>`
 - [ ] Run one-shot raw contract capture to collect endpoint payload shapes:
   `cd packages/python && uv run ../../collect_contract.py --host <host> --user <user> --password <pass>`
 - [ ] Validate read endpoints (address objects, access rules, interfaces, NAT, services, DHCP)
@@ -37,3 +39,5 @@ Use this checklist before adopting a new SDK version in production.
 - [ ] Publish changelog entry describing auth behavior and firmware notes
 - [ ] Tag release version and package artifacts
 - [ ] Run pilot rollout on one environment before broad deployment
+- [ ] Refresh support matrix from source data:
+  `python3 generate_endpoint_support_matrix.py`

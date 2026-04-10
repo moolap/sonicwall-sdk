@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from .._exceptions import NotFoundError, SonicWallHTTPError
 from ..models.address_object import AddressObject
+from ._normalize import normalize_get_from_plural, unwrap_ipv4
 from ._base import BaseResource
 
 if TYPE_CHECKING:
@@ -72,32 +73,15 @@ class AddressObjectsResource(BaseResource):
         Some devices return GET-by-name as {"address_objects": [ ... ]} instead
         of a direct {"address_object": ...} envelope.
         """
-        items = response.get("address_objects")
-        if not isinstance(items, list) or not items:
-            return response
-
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            if "address_object" in item and isinstance(item["address_object"], dict):
-                obj = item["address_object"]
-                ipv4 = obj.get("ipv4")
-                if isinstance(ipv4, dict) and ipv4.get("name") == expected_name:
-                    return {"address_object": {"ipv4": ipv4}}
-            else:
-                ipv4 = item.get("ipv4")
-                if isinstance(ipv4, dict) and ipv4.get("name") == expected_name:
-                    return {"address_object": {"ipv4": ipv4}}
-
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            if "address_object" in item and isinstance(item["address_object"], dict):
-                return item
-            ipv4 = item.get("ipv4")
-            if isinstance(ipv4, dict):
-                return {"address_object": {"ipv4": ipv4}}
-        return response
+        return normalize_get_from_plural(
+            response,
+            plural_key="address_objects",
+            singular_key="address_object",
+            predicate=lambda item: (
+                (ipv4 := unwrap_ipv4(item, "address_object")) is not None
+                and ipv4.get("name") == expected_name
+            ),
+        )
 
     async def create(self, obj: AddressObject) -> AddressObject:
         """Create a new IPv4 address object.

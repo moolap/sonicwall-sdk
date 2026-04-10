@@ -2,8 +2,10 @@ package sonicwall
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/gandiva-tech/sonicwall-sdk/go/models"
 )
@@ -32,11 +34,26 @@ func (s *AddressObjectsService) List(ctx context.Context) ([]*models.AddressObje
 // Get returns a specific IPv4 address object by name.
 func (s *AddressObjectsService) Get(ctx context.Context, name string) (*models.AddressObjectIPv4, error) {
 	path := fmt.Sprintf("%s/name/%s", addressObjectsBase, url.PathEscape(name))
-	var env models.AddressObjectEnvelope
-	if err := s.client.get(ctx, path, &env); err != nil {
+	data, err := s.client.request(ctx, "GET", path, nil)
+	if err != nil {
 		return nil, err
 	}
-	return models.FromWire(env.AddressObject.IPv4), nil
+	var env models.AddressObjectEnvelope
+	if err := json.Unmarshal(data, &env); err == nil && env.AddressObject.IPv4.Name != "" {
+		return models.FromWire(env.AddressObject.IPv4), nil
+	}
+	var list models.AddressObjectsListResponse
+	if err := json.Unmarshal(data, &list); err == nil {
+		for _, item := range list.AddressObjects {
+			if item.AddressObject.IPv4.Name == name {
+				return models.FromWire(item.AddressObject.IPv4), nil
+			}
+		}
+		if len(list.AddressObjects) > 0 {
+			return models.FromWire(list.AddressObjects[0].AddressObject.IPv4), nil
+		}
+	}
+	return nil, &NotFoundError{HTTPError{StatusCode: 404, SonicWallError: SonicWallError{message: "object not found"}}}
 }
 
 // Create creates a new IPv4 address object.
@@ -44,9 +61,26 @@ func (s *AddressObjectsService) Get(ctx context.Context, name string) (*models.A
 func (s *AddressObjectsService) Create(ctx context.Context, obj *models.AddressObjectIPv4) (*models.AddressObjectIPv4, error) {
 	envelope := obj.ToEnvelope()
 	if err := s.client.post(ctx, addressObjectsBase, envelope, nil); err != nil {
-		return nil, err
+		// Firmware variant: expects address_objects array payload.
+		if strings.Contains(strings.ToLower(err.Error()), "schema validation error") &&
+			strings.Contains(strings.ToLower(err.Error()), "address_objects") {
+			fallback := map[string]any{
+				"address_objects": []map[string]any{
+					{"ipv4": envelope.AddressObject.IPv4},
+				},
+			}
+			if retryErr := s.client.post(ctx, addressObjectsBase, fallback, nil); retryErr != nil {
+				return nil, retryErr
+			}
+		} else {
+			return nil, err
+		}
 	}
-	return s.Get(ctx, obj.Name)
+	got, getErr := s.Get(ctx, obj.Name)
+	if getErr != nil {
+		return obj, nil
+	}
+	return got, nil
 }
 
 // Update updates an existing IPv4 address object.
@@ -55,13 +89,29 @@ func (s *AddressObjectsService) Update(ctx context.Context, name string, obj *mo
 	path := fmt.Sprintf("%s/name/%s", addressObjectsBase, url.PathEscape(name))
 	envelope := obj.ToEnvelope()
 	if err := s.client.put(ctx, path, envelope, nil); err != nil {
-		return nil, err
+		if strings.Contains(strings.ToLower(err.Error()), "schema validation error") &&
+			strings.Contains(strings.ToLower(err.Error()), "address_objects") {
+			fallback := map[string]any{
+				"address_objects": []map[string]any{
+					{"ipv4": envelope.AddressObject.IPv4},
+				},
+			}
+			if retryErr := s.client.put(ctx, path, fallback, nil); retryErr != nil {
+				return nil, retryErr
+			}
+		} else {
+			return nil, err
+		}
 	}
 	effectiveName := obj.Name
 	if effectiveName == "" {
 		effectiveName = name
 	}
-	return s.Get(ctx, effectiveName)
+	got, getErr := s.Get(ctx, effectiveName)
+	if getErr != nil {
+		return obj, nil
+	}
+	return got, nil
 }
 
 // Delete deletes an IPv4 address object by name.

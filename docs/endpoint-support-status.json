@@ -1,0 +1,137 @@
+{
+  "POST /auth": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Digest auth-int + bearer token flow validated."
+  },
+  "DELETE /auth": {
+    "sdk_status": "supported",
+    "firmware_status": "supported",
+    "notes": "Logout works."
+  },
+  "POST /config/pending": {
+    "sdk_status": "supported",
+    "firmware_status": "supported",
+    "notes": "Commit works."
+  },
+  "DELETE /config/pending": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Can return Non config mode depending on transaction state."
+  },
+  "GET /address-objects/ipv4": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Malformed built-ins are skipped."
+  },
+  "POST /address-objects/ipv4": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "SDK retries firmware schema variant payload."
+  },
+  "GET /address-objects/ipv4/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Firmware may return list envelope; SDK normalizes."
+  },
+  "PUT /address-objects/ipv4/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "supported_with_quirks",
+    "notes": "SDK retries firmware schema variant payload."
+  },
+  "DELETE /address-objects/ipv4/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "supported",
+    "notes": "Validated in smoke write flow."
+  },
+  "GET /access-rules/ipv4": {
+    "sdk_status": "supported",
+    "firmware_status": "supported",
+    "notes": "List works."
+  },
+  "POST /access-rules/ipv4": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "GET /access-rules/ipv4/from/{from_zone}/to/{to_zone}/name/{name}": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Direct endpoint can 404; SDK falls back to list matching."
+  },
+  "PUT /access-rules/ipv4/from/{from_zone}/to/{to_zone}/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "DELETE /access-rules/ipv4/from/{from_zone}/to/{to_zone}/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "GET /interfaces": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Endpoint returns API endpoint is incomplete."
+  },
+  "GET /interfaces/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "not_yet_validated",
+    "notes": "Not reachable on validated firmware due to list endpoint behavior."
+  },
+  "GET /nat-policies/ipv4": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Parser handles inbound/outbound and object-ref variants."
+  },
+  "POST /nat-policies/ipv4": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "GET /nat-policies/ipv4/name/{name}": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Direct endpoint can 404; SDK falls back to list matching."
+  },
+  "PUT /nat-policies/ipv4/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "DELETE /nat-policies/ipv4/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates API not found on validated firmware profile."
+  },
+  "GET /service-objects": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Long built-in names and envelope variants supported."
+  },
+  "POST /service-objects": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Create may succeed but follow-up command path is not found on validated firmware."
+  },
+  "GET /service-objects/name/{name}": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "supported_with_quirks",
+    "notes": "Direct endpoint can return list envelope; SDK normalizes/falls back."
+  },
+  "PUT /service-objects/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates command/API not found on validated firmware profile."
+  },
+  "DELETE /service-objects/name/{name}": {
+    "sdk_status": "supported",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Write validation indicates command/API not found on validated firmware profile."
+  },
+  "GET /dhcp/server/lease": {
+    "sdk_status": "supported_with_fallback",
+    "firmware_status": "unsupported_on_validated_firmware",
+    "notes": "Primary and fallback DHCP endpoints are unavailable/incomplete on validated firmware."
+  }
+}

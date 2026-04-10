@@ -34,11 +34,21 @@ export abstract class BaseResource {
   protected async _list<T>(
     path: string,
     listKey: string,
-    parse: (item: Record<string, unknown>) => T
+    parse: (item: Record<string, unknown>) => T,
+    skipParseErrors = false
   ): Promise<T[]> {
     const response = await this._get<Record<string, unknown>>(path);
     const items = response[listKey];
     if (!Array.isArray(items)) return [];
-    return items.map((item) => parse(item as Record<string, unknown>));
+    const result: T[] = [];
+    for (const item of items) {
+      try {
+        result.push(parse(item as Record<string, unknown>));
+      } catch (err) {
+        if (!skipParseErrors) throw err;
+        console.warn(`Skipping unparsable list item from ${path}:`, item);
+      }
+    }
+    return result;
   }
 }

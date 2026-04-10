@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import urllib.parse
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from .._exceptions import NotFoundError, SonicWallHTTPError
 from ..models.access_rule import AccessRule
 from ._base import BaseResource
-from .._exceptions import NotFoundError
+from ._normalize import normalize_get_from_plural, unwrap_ipv4
 
 if TYPE_CHECKING:
     from .._client import SonicWallClient
+
+logger = logging.getLogger(__name__)
 
 
 class AccessRulesResource(BaseResource):
@@ -30,6 +34,22 @@ class AccessRulesResource(BaseResource):
 
     def __init__(self, client: "SonicWallClient") -> None:
         super().__init__(client)
+
+    @staticmethod
+    def _to_collection_payload(rule: AccessRule) -> dict[str, Any]:
+        single = rule.to_api_dict()
+        item = single.get("access_rule", {})
+        return {"access_rules": [item]}
+
+    @staticmethod
+    def _is_schema_array_error(exc: SonicWallHTTPError) -> bool:
+        msg = str(exc).lower()
+        return (
+            exc.status_code == 400
+            and "schema validation error" in msg
+            and "access_rules" in msg
+            and "expected '['" in msg
+        )
 
     async def list(self) -> list[AccessRule]:
         """Return all IPv4 access rules."""
@@ -54,10 +74,38 @@ class AccessRulesResource(BaseResource):
         from_enc = urllib.parse.quote(from_zone, safe="")
         to_enc = urllib.parse.quote(to_zone, safe="")
         name_enc = urllib.parse.quote(name, safe="")
-        response = await self._get(
-            f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}"
+        path = f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}"
+        try:
+            response = await self._get(path)
+            response = self._normalize_get_response(response, from_zone=from_zone, to_zone=to_zone, name=name)
+            return AccessRule.from_api_response(response)
+        except NotFoundError:
+            pass
+        except SonicWallHTTPError as exc:
+            if exc.status_code != 404:
+                raise
+
+        rules = await self.list()
+        for rule in rules:
+            if rule.from_zone == from_zone and rule.to_zone == to_zone and rule.name == name:
+                return rule
+        raise NotFoundError(status_code=404, message=f"Access rule not found: {from_zone}->{to_zone}:{name}")
+
+    @staticmethod
+    def _normalize_get_response(
+        response: dict[str, Any], *, from_zone: str, to_zone: str, name: str
+    ) -> dict[str, Any]:
+        return normalize_get_from_plural(
+            response,
+            plural_key="access_rules",
+            singular_key="access_rule",
+            predicate=lambda item: (
+                (ipv4 := unwrap_ipv4(item, "access_rule")) is not None
+                and ipv4.get("from") == from_zone
+                and ipv4.get("to") == to_zone
+                and ipv4.get("name") == name
+            ),
         )
-        return AccessRule.from_api_response(response)
 
     async def create(self, rule: AccessRule) -> AccessRule:
         """Create a new access rule.
@@ -68,9 +116,18 @@ class AccessRulesResource(BaseResource):
         Raises:
             ConflictError: if a rule with the same name already exists in the zone pair.
         """
-        await self._post(self._BASE, rule.to_api_dict())
+        payload = rule.to_api_dict()
+        try:
+            await self._post(self._BASE, payload)
+        except SonicWallHTTPError as exc:
+            if not self._is_schema_array_error(exc):
+                raise
+            await self._post(self._BASE, self._to_collection_payload(rule))
         if rule.name:
-            return await self.get(rule.from_zone, rule.to_zone, rule.name)
+            try:
+                return await self.get(rule.from_zone, rule.to_zone, rule.name)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Create succeeded but access-rule get parse failed; returning input rule: %s", exc)
         return rule
 
     async def update(
@@ -90,12 +147,20 @@ class AccessRulesResource(BaseResource):
         from_enc = urllib.parse.quote(from_zone, safe="")
         to_enc = urllib.parse.quote(to_zone, safe="")
         name_enc = urllib.parse.quote(name, safe="")
-        await self._put(
-            f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}",
-            rule.to_api_dict(),
-        )
+        path = f"{self._BASE}/from/{from_enc}/to/{to_enc}/name/{name_enc}"
+        payload = rule.to_api_dict()
+        try:
+            await self._put(path, payload)
+        except SonicWallHTTPError as exc:
+            if not self._is_schema_array_error(exc):
+                raise
+            await self._put(path, self._to_collection_payload(rule))
         effective_name = rule.name or name
-        return await self.get(rule.from_zone, rule.to_zone, effective_name)
+        try:
+            return await self.get(rule.from_zone, rule.to_zone, effective_name)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Update succeeded but access-rule get parse failed; returning input rule: %s", exc)
+            return rule
 
     async def delete(self, from_zone: str, to_zone: str, name: str) -> None:
         """Delete an access rule by zone pair and name.
