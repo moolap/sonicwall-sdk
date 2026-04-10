@@ -29,6 +29,7 @@ variables:
     key: "node-${CI_COMMIT_REF_SLUG}"
     paths:
       - .pnpm-store/
+      - .pnpm-tool/
       - packages/typescript/node_modules/
 
 .go-cache: &go-cache
@@ -58,7 +59,10 @@ typescript:lint:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    # Project-local pnpm (no global install — required for shell executors without root)
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run lint
@@ -108,7 +112,9 @@ typescript:test:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run test --coverage
@@ -161,7 +167,9 @@ typescript:build:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - pnpm run build
@@ -217,7 +225,9 @@ typescript:release:
   image: ${NODE_IMAGE}
   <<: *node-cache
   before_script:
-    - npm install -g pnpm@10 --quiet
+    - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
+    - npm install pnpm@10.0.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
+    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript
     - pnpm install --frozen-lockfile
   script:

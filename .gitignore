@@ -35,6 +35,7 @@ packages/typescript/coverage/
 packages/typescript/*.tsbuildinfo
 .turbo/
 .pnpm-store/
+.pnpm-tool/
 .pnpm-home/
 
 # Local contract captures (live device debugging)
