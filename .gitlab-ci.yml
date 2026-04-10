@@ -226,7 +226,10 @@ go:build:
 
 security:osv-scan:
   stage: security
-  image: ${OSV_SCANNER_IMAGE}
+  # Image sets ENTRYPOINT=osv-scanner; without clearing it, the runner's sh -c is passed as args (-c breaks).
+  image:
+    name: ${OSV_SCANNER_IMAGE}
+    entrypoint: [""]
   script:
     # V2 CLI — see https://google.github.io/osv-scanner/usage/
     - osv-scanner scan -r "${CI_PROJECT_DIR}"
