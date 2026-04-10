@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from .._client import SonicWallClient
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 class BaseResource:
@@ -40,6 +42,8 @@ class BaseResource:
         item_key: str | None,
         model_class: type[T],
         from_api: str = "from_api_response",
+        *,
+        skip_parse_errors: bool = False,
     ) -> list[T]:
         """Fetch and parse a SonicOS list response.
 
@@ -58,8 +62,13 @@ class BaseResource:
 
         result: list[T] = []
         for item in items:
-            if item_key and item_key in item:
-                result.append(parser(item))
-            else:
-                result.append(parser(item))
+            try:
+                if item_key and item_key in item:
+                    result.append(parser(item))
+                else:
+                    result.append(parser(item))
+            except Exception:
+                if not skip_parse_errors:
+                    raise
+                logger.warning("Skipping unparsable list item from %s: %r", path, item)
         return result

@@ -13,6 +13,13 @@ pip install sonicwall-sdk
 uv add sonicwall-sdk
 ```
 
+## Authentication behavior
+
+On SonicOS 7.x, the Python SDK authenticates with a Digest `auth-int`
+handshake against `POST /auth`, then uses `Authorization: Bearer <token>` for
+subsequent requests. This is handled automatically by `connect()` and does not
+require manual header management.
+
 ## Async usage (recommended)
 
 ```python

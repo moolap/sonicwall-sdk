@@ -48,7 +48,7 @@ class ServiceObject(BaseModel):
         }
     """
 
-    name: str = Field(..., max_length=31)
+    name: str = Field(...)
     protocol: ServiceProtocol
 
     model_config = {"populate_by_name": True}

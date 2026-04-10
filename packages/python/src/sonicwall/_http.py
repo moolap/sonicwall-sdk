@@ -71,6 +71,7 @@ class HTTPClient:
             verify=verify_ssl,
             timeout=timeout,
             follow_redirects=False,
+            trust_env=False,
         )
 
     async def request(
@@ -120,9 +121,9 @@ class HTTPClient:
         if json is not None:
             headers["Content-Type"] = "application/json"
 
-        # Inject session cookie
-        if self._auth._session_cookie:  # noqa: SLF001
-            headers["Cookie"] = f"smngsess={self._auth._session_cookie}"  # noqa: SLF001
+        # Inject bearer token
+        if self._auth._bearer_token:  # noqa: SLF001
+            headers["Authorization"] = f"Bearer {self._auth._bearer_token}"  # noqa: SLF001
 
         try:
             return await self._client.request(

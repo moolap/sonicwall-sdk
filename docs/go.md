@@ -10,6 +10,15 @@
 go get github.com/gandiva-tech/sonicwall-sdk/go
 ```
 
+## Authentication behavior
+
+The current Go SDK implementation authenticates with `Authorization: Basic ...`
+to `POST /auth`, then sends `Cookie: smngsess=...` on authenticated requests.
+
+On some SonicOS 7.x devices, auth may require Digest `auth-int` and issue a
+bearer token instead. If you encounter that behavior, treat this as a known
+firmware-compatibility gap in the current Go client.
+
 ## Basic usage
 
 ```go

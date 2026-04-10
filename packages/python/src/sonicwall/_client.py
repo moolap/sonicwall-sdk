@@ -6,6 +6,7 @@ import asyncio
 import threading
 from types import TracebackType
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import anyio
 import anyio.from_thread
@@ -52,8 +53,8 @@ class SonicWallClient:
         timeout: float = 30.0,
         auto_commit: bool = False,
     ) -> None:
-        scheme = "https"
-        base_url = f"{scheme}://{host}/api/sonicos"
+        scheme, host_only = self._normalize_host(host)
+        base_url = f"{scheme}://{host_only}/api/sonicos"
         self._auto_commit = auto_commit
         self._auth = AuthManager(base_url, username, password)
         self._http = HTTPClient(
@@ -73,6 +74,24 @@ class SonicWallClient:
         self._nat_policies: NatPoliciesResource | None = None
         self._service_objects: ServiceObjectsResource | None = None
         self._dhcp: DhcpResource | None = None
+
+    @staticmethod
+    def _normalize_host(host: str) -> tuple[str, str]:
+        """Normalize host input and optional scheme for base URL construction."""
+        raw = host.strip().rstrip("/")
+        if "://" in raw:
+            parsed = urlparse(raw)
+            scheme = parsed.scheme or "https"
+            host_part = parsed.netloc or parsed.path
+        else:
+            scheme = "https"
+            host_part = raw
+
+        host_part = host_part.strip().rstrip("/")
+        if "/" in host_part:
+            host_part = host_part.split("/", 1)[0]
+
+        return scheme, host_part
 
     # --- Lifecycle ---
 

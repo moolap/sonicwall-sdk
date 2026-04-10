@@ -17,6 +17,17 @@ Multi-language SDK for the SonicOS REST API. Manage address objects, access rule
 - Self-signed certificate support (default: SSL verification disabled)
 - Async-first Python with sync wrapper; async TypeScript; idiomatic Go
 
+## Authentication Matrix
+
+| SDK | Current auth implementation | Firmware notes |
+|---|---|---|
+| Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Targets SonicOS 7.x behavior where auth returns `bearer_token` |
+| TypeScript | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
+| Go | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
+
+If your target device requires Digest `auth-int` + bearer token, use Python now
+or plan parity updates for TypeScript/Go before production rollout.
+
 ## Installation
 
 ### Python
@@ -187,6 +198,8 @@ except AuthenticationError:
 - [TypeScript guide](docs/typescript.md)
 - [Go guide](docs/go.md)
 - [SonicOS quirks and gotchas](docs/sonicwall-quirks.md)
+- [Endpoint support matrix](docs/endpoint-support-matrix.md)
+- [Release readiness checklist](docs/release-readiness.md)
 
 ## Contributing
 

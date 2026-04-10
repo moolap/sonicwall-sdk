@@ -133,7 +133,10 @@ class AddressObject(BaseModel):
 
         if "host" in data:
             obj_type = AddressObjectType.HOST
-            kwargs["host"] = data["host"]["ip"]
+            host_value = cls._extract_host_ip(data["host"])
+            if host_value is None:
+                raise ValueError(f"Host object missing IP field: {data['host']}")
+            kwargs["host"] = host_value
         elif "network" in data:
             obj_type = AddressObjectType.NETWORK
             subnet = data["network"]["subnet"]
@@ -156,3 +159,18 @@ class AddressObject(BaseModel):
 
         kwargs["type"] = obj_type
         return cls.model_validate(kwargs)
+
+    @staticmethod
+    def _extract_host_ip(host_data: Any) -> str | None:
+        """Extract host IP from known SonicOS host payload shapes."""
+        if isinstance(host_data, str):
+            return host_data
+        if not isinstance(host_data, dict):
+            return None
+
+        # Different firmware versions can use slightly different keys.
+        for key in ("ip", "ipv4", "address", "host"):
+            value = host_data.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None

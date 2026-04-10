@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from .._exceptions import NotFoundError
 from ..models.dhcp import DhcpLease
 from ._base import BaseResource
 
 if TYPE_CHECKING:
     from .._client import SonicWallClient
+
+logger = logging.getLogger(__name__)
 
 
 class DhcpResource(BaseResource):
@@ -28,9 +32,43 @@ class DhcpResource(BaseResource):
 
     async def list_leases(self) -> list[DhcpLease]:
         """Return all active DHCP server leases."""
-        return await self._list(
+        candidate_paths = [
             self._BASE,
-            list_key="dhcp_leases",
-            item_key=None,
-            model_class=DhcpLease,
-        )
+            "/dhcp/server/leases",
+            "/dhcp/leases",
+            "/dhcp-server/lease",
+        ]
+        candidate_keys = ["dhcp_leases", "dhcp_server_leases", "leases"]
+
+        last_not_found: Exception | None = None
+        for path in candidate_paths:
+            try:
+                body = await self._get(path)
+            except NotFoundError as exc:
+                last_not_found = exc
+                continue
+
+            items = None
+            for key in candidate_keys:
+                raw = body.get(key)
+                if isinstance(raw, list):
+                    items = raw
+                    break
+            if items is None:
+                # Some firmware may return successful status with empty payload.
+                if body.get("status", {}).get("success") is True:
+                    return []
+                logger.warning("Unexpected DHCP lease response shape on %s: %r", path, body)
+                return []
+
+            result: list[DhcpLease] = []
+            for item in items:
+                try:
+                    result.append(DhcpLease.from_api_response(item))
+                except Exception:  # noqa: BLE001
+                    logger.warning("Skipping unparsable DHCP lease item from %s: %r", path, item)
+            return result
+
+        if last_not_found:
+            raise last_not_found
+        return []

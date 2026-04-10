@@ -179,20 +179,42 @@ When creating a resource (POST), SonicOS returns only a status response, not the
 
 ---
 
-## 12. Authentication uses Basic auth header, not JSON body
+## 12. SonicOS 7 authentication requires Digest `auth-int` handshake
 
-Despite the Content-Type being `application/json`, authentication credentials are passed in the `Authorization: Basic <base64>` header, not in the request body. The body is an empty JSON object `{}`.
+On SonicOS 7.x devices, authentication is a two-step Digest flow (with
+`qop=auth-int`), not a single Basic-auth request:
+
+1. `POST /api/sonicos/auth` with `{}` and no auth header returns `401` with
+   `WWW-Authenticate: Digest ... qop="auth-int"`.
+2. Client computes and sends `Authorization: Digest ...` with body integrity
+   (`auth-int`) for the same `{}` body.
+3. Successful response returns status info containing a `bearer_token`.
 
 ```
 POST /api/sonicos/auth
-Authorization: Basic YWRtaW46cGFzc3dvcmQ=
 Content-Type: application/json
 
 {}
+-> 401 WWW-Authenticate: Digest ... qop="auth-int"
 ```
 
 ---
 
-## 13. Session cookie name
+## 13. Auth token format differs by firmware
 
-The session cookie is named `smngsess` (SonicWall Management Session). It must be included as a `Cookie` header on every authenticated request. The SDK manages this automatically.
+SonicOS 7.x commonly returns a `bearer_token` in the auth response body, and
+subsequent requests use:
+
+```
+Authorization: Bearer <token>
+```
+
+Some older firmware variants use the `smngsess` cookie instead:
+
+```
+Cookie: smngsess=<value>
+```
+
+**Impact:** SDK implementations may differ by language/version while targeting
+the same API family. The current Python SDK uses Digest `auth-int` + Bearer
+token for SonicOS 7.x.
