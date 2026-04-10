@@ -25,6 +25,9 @@ coverage.xml
 # Local pnpm tool cache (CI uses PNPM_CACHE_DIR)
 .pnpm-home/
 
+# Project-local uv binary (shell CI; UV_INSTALL_DIR)
+.uv-install/
+
 # Contract captures from local devices (optional tooling)
 packages/python/contract-captures/
 

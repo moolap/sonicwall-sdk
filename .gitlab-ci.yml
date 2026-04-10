@@ -22,6 +22,7 @@ variables:
     key: "python-${CI_COMMIT_REF_SLUG}"
     paths:
       - .uv-cache/
+      - .uv-install/
       - packages/python/.venv/
 
 .node-cache: &node-cache
@@ -38,6 +39,28 @@ variables:
     paths:
       - .go/pkg/mod/
 
+# Bootstrap uv without pip on PEP 668 hosts (shell executor ignores `image:`).
+# When `curl` exists, install to $CI_PROJECT_DIR/.uv-install; else fall back to pip (Docker images).
+.python_uv_bootstrap:
+  stage: lint
+  rules:
+    - when: never
+  script:
+    - "true"
+  before_script:
+    - |
+      set -e
+      export UV_INSTALL_DIR="${CI_PROJECT_DIR}/.uv-install"
+      mkdir -p "$UV_INSTALL_DIR"
+      export PATH="${UV_INSTALL_DIR}/bin:${PATH}"
+      if command -v uv >/dev/null 2>&1; then
+        true
+      elif command -v curl >/dev/null 2>&1; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+      else
+        pip install uv --quiet
+      fi
+
 # === LINT ===
 
 python:lint:
@@ -45,7 +68,7 @@ python:lint:
   image: ${PYTHON_IMAGE}
   <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - !reference [.python_uv_bootstrap, before_script, 0]
     - cd packages/python && uv sync --all-extras --quiet
   script:
     - uv run ruff check src/ tests/
@@ -93,7 +116,7 @@ python:test:
   image: ${PYTHON_IMAGE}
   <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - !reference [.python_uv_bootstrap, before_script, 0]
     - cd packages/python && uv sync --all-extras --quiet
   script:
     - uv run pytest tests/ -v
@@ -166,8 +189,9 @@ go:test:
 python:build:
   stage: build
   image: ${PYTHON_IMAGE}
+  <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - !reference [.python_uv_bootstrap, before_script, 0]
     - cd packages/python
   script:
     - uv build
@@ -223,8 +247,9 @@ security:osv-scan:
 python:release:
   stage: release
   image: ${PYTHON_IMAGE}
+  <<: *python-cache
   before_script:
-    - pip install uv --quiet
+    - !reference [.python_uv_bootstrap, before_script, 0]
     - cd packages/python
   script:
     - uv build
