@@ -25,7 +25,11 @@ Pull requests with commits lacking sign-off will not be merged.
 
 Branch off **`dev`** for everyday work (or open MRs into `dev`). Rebase before opening an MR — do not merge unrelated history into your branch.
 
-**Do not push commits directly to `main`.** All changes should land via merge request. Enforce that by **protecting `main`** in GitLab (CI cannot block `git push`):
+**Do not push commits directly to `main`.** Land changes via **merge request** (`dev` → `main`). This matches the **Srasta** workflow: integration on **`main`**, **releases only when you push a version tag**.
+
+CI includes **`validate:no-direct-push-to-main`** on the default branch: the tip commit must be a **merge commit** (more than one parent). **GitLab “Squash merge”** yields one parent and **fails** that check—use a **merge commit** for `dev` → `main` (or turn off squash for that MR). Tags **`vX.Y.Z`** are checked by **`validate:tag-from-main`** (commit must be reachable from `main`).
+
+Enforce human access with **protected branches** on **`main`**:
 
 1. **Settings → Repository → Protected branches** → protect **`main`**.
 2. **Allowed to push:** **No one**.
@@ -153,28 +157,24 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 - [ ] `CHANGELOG.md` entry under `## Unreleased`
 - [ ] CI pipeline green
 
-## Branch and release flow
+## Branch and release flow (Srasta-style)
 
-**`dev`** and **`main`** run the same **lint → test → build → security** jobs on every push. Only **`main`** also runs **`sdk:release`** (after those stages succeed).
+**Branches:** **`dev`** and **`main`** run the same **lint → test → build → security** jobs on every push. **Merging to `main` does not publish** to PyPI or npm.
 
-Typical loop:
+**Releases:** When `main` has the commit you want to ship, you **tag** it **`vX.Y.Z`** (same pattern as Srasta). That starts a **tag pipeline** that:
 
-1. Commit on **`dev`** and push → pipeline on `dev` must be green.
-2. Open a merge request **`dev` → `main`** and merge when ready (there is **no** MR pipeline; you already verified **`dev`** above). Merging starts a **`main`** push pipeline.
-3. **`sdk:release`** on that `main` push:
-   - Publishes the **current** versions in `packages/python/pyproject.toml`, `packages/typescript/package.json`, and `packages/go/version.go` to **PyPI** and **npm** (and runs **Go build/test** as a sanity check).
-   - **Bumps the patch** version in all three places (e.g. `0.1.0` → `0.1.1`) for the next development cycle.
-   - Commits with **`[skip ci]`**, pushes to **`main`**, then **merges `main` into `dev`** and pushes **`dev`** so both branches show the new “next” version.
+1. Runs the same checks again, plus **`validate:release-versions`** (root **`VERSION`** must match the tag, and Python / TypeScript / Go metadata must match **`VERSION`**).
+2. Runs **`validate:tag-from-main`** (the tagged commit must be on the **`main`** line).
+3. Runs **`python:release`**, **`typescript:release`**, and **`go:release`** (build/test + PyPI + npm; Go still needs a separate **`go/vX.Y.Z`** tag on the same commit for `go get` — the job prints the exact command).
 
-Keep the three package versions equal before you merge to `main`. Treat the SDK as one product: behavior changes should land in Python, TypeScript, and Go together when possible.
+**Typical loop**
 
-**Merges that must not publish** (e.g. docs-only while the package version is unchanged): put **`[skip release]`** in the merge commit subject/body so `sdk:release` exits without calling PyPI/npm or bumping versions. Otherwise every merge to `main` is treated as a release of the current semver.
+1. Push to **`dev`** → green pipeline.
+2. Merge **`dev` → `main`** via MR (**merge commit**, not squash if you rely on `validate:no-direct-push-to-main`).
+3. On **`main`**, set **`VERSION`** to the release (e.g. `0.2.0`), run **`python3 scripts/sync_versions_from_file.py`**, commit, push to **`main`** (via MR from a short-lived branch is fine).
+4. Tag and push: **`git tag v0.2.0`** && **`git push origin v0.2.0`** (tag must point at the commit that contains the synced files).
 
-**Go module installs** (`go get`) still follow the usual **`go/vX.Y.Z` git tags** on this repo; the release job does not create those tags automatically. Tag **`go/v0.1.0`** (etc.) when you need proxy-friendly Go releases, or extend CI later.
-
-### GitLab: `GITLAB_PUSH_TOKEN`
-
-The release job must **push commits** to **`main`** and **`dev`**. Add a masked CI/CD variable **`GITLAB_PUSH_TOKEN`**: a [project access token](https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html) (or PAT) with **api** and **write_repository**, allowed to push to protected branches (often as **Maintainer**). Without it, `sdk:release` fails at the git push step.
+Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, and **`version.go`** aligned (use the sync script). No CI job pushes git commits for releases.
 
 ### Trusted publishing (PyPI and npm)
 
