@@ -106,12 +106,13 @@ validate:no-direct-push-to-main:
       if [ "${PARENT_COUNT}" -gt 1 ]; then
         echo "OK: merge commit"
       else
-        echo "ERROR: direct push to ${CI_DEFAULT_BRANCH} is not allowed."
+        echo "ERROR: direct push to main is not allowed."
         echo "Work on dev and merge via MR (use a regular merge commit, not squash, if this check must pass)."
         exit 1
       fi
+  # Only `main` — not `$CI_DEFAULT_BRANCH` (this project may use `dev` as default; dev uses normal single-parent pushes).
   rules:
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
 
 # Release tags vX.Y.Z must point to a commit on the default branch (dev -> main -> tag).
 validate:tag-from-main:
@@ -125,12 +126,12 @@ validate:tag-from-main:
   script:
     - |
       set -eu
-      git fetch origin "${CI_DEFAULT_BRANCH}"
-      if git merge-base --is-ancestor "${CI_COMMIT_SHA}" "origin/${CI_DEFAULT_BRANCH}"; then
-        echo "OK — tag ${CI_COMMIT_TAG} points to a commit reachable from ${CI_DEFAULT_BRANCH}."
+      git fetch origin main
+      if git merge-base --is-ancestor "${CI_COMMIT_SHA}" "origin/main"; then
+        echo "OK — tag ${CI_COMMIT_TAG} points to a commit reachable from main."
       else
-        echo "ERROR: tag ${CI_COMMIT_TAG} is not on ${CI_DEFAULT_BRANCH}."
-        echo "Release policy: dev -> ${CI_DEFAULT_BRANCH} -> tag."
+        echo "ERROR: tag ${CI_COMMIT_TAG} is not on main."
+        echo "Release policy: dev -> main -> tag."
         exit 1
       fi
   rules:

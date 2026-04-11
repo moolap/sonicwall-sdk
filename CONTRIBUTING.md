@@ -27,7 +27,7 @@ Branch off **`dev`** for everyday work (or open MRs into `dev`). Rebase before o
 
 **Do not push commits directly to `main`.** Land changes via **merge request** (`dev` → `main`). This matches the **Srasta** workflow: integration on **`main`**, **releases only when you push a version tag**.
 
-CI includes **`validate:no-direct-push-to-main`** on the default branch: the tip commit must be a **merge commit** (more than one parent). **GitLab “Squash merge”** yields one parent and **fails** that check—use a **merge commit** for `dev` → `main` (or turn off squash for that MR). Tags **`vX.Y.Z`** are checked by **`validate:tag-from-main`** (commit must be reachable from `main`).
+CI includes **`validate:no-direct-push-to-main`** on **`main`** only (even if GitLab’s default branch is **`dev`**): the tip commit must be a **merge commit** (more than one parent). **GitLab “Squash merge”** yields one parent and **fails** that check—use a **merge commit** for `dev` → `main` (or turn off squash for that MR). Tags **`vX.Y.Z`** are checked by **`validate:tag-from-main`** (commit must be reachable from `main`).
 
 Enforce human access with **protected branches** on **`main`**:
 
