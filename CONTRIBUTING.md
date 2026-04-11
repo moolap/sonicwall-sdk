@@ -178,7 +178,7 @@ Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`packa
 
 ### CI runners (private vs GitLab shared)
 
-Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`** (currently **`sonicwall-sdk-ci`**). Register your runners with that tag, or edit the YAML to match your **`gitlab-runner register --tag-list`**.
+Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`** (currently **`gdlinux`**, to match project runners). Edit the YAML if your runners use different **`gitlab-runner register --tag-list`** tags.
 
 To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
 
