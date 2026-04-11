@@ -24,6 +24,8 @@ variables:
   PNPM_CACHE_DIR: "${CI_PROJECT_DIR}/.pnpm-store"
   GOPATH: "${CI_PROJECT_DIR}/.go"
   GOMODCACHE: "${CI_PROJECT_DIR}/.go/pkg/mod"
+  # Avoid golang.org/toolchain@* in module cache (read-only files break runner cleanup on some executors).
+  GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:20-alpine"
   GO_IMAGE: "golang:1.25-alpine"
@@ -63,6 +65,11 @@ variables:
   rules:
     - when: always
 
+# Writable .go tree so job cleanup can delete cached mod/toolchain files.
+.go-cache-clean:
+  after_script:
+    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+
 # === LINT ===
 
 python:lint:
@@ -74,9 +81,9 @@ python:lint:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python && uv sync --all-extras --quiet
   script:
-    - uv run ruff check src/ tests/
-    - uv run ruff format --check src/ tests/
-    - uv run mypy src/ --no-error-summary
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff format --check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run mypy src/ --no-error-summary
 
 typescript:lint:
   extends: .integrity
@@ -90,11 +97,12 @@ typescript:lint:
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
-    - pnpm run lint
-    - pnpm run typecheck
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run lint && pnpm run typecheck
 
 go:lint:
-  extends: .integrity
+  extends:
+    - .integrity
+    - .go-cache-clean
   stage: lint
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -130,13 +138,10 @@ python:test:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python && uv sync --all-extras --quiet
   script:
-    - uv run pytest tests/ -v
-      --cov=sonicwall
-      --cov-report=term-missing
-      --cov-report=xml:coverage.xml
-      --cov-fail-under=70
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
   coverage: '/TOTAL.*\s(\d+\%)/'
   artifacts:
+    when: on_success
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -154,8 +159,9 @@ typescript:test:
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
-    - pnpm run test --coverage
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run test --coverage
   artifacts:
+    when: on_success
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -163,7 +169,9 @@ typescript:test:
     expire_in: 1 week
 
 go:test:
-  extends: .integrity
+  extends:
+    - .integrity
+    - .go-cache-clean
   stage: test
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -220,14 +228,16 @@ typescript:build:
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
-    - pnpm run build
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
   artifacts:
     paths:
       - packages/typescript/dist/
     expire_in: 1 week
 
 go:build:
-  extends: .integrity
+  extends:
+    - .integrity
+    - .go-cache-clean
   stage: build
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -270,9 +280,8 @@ python:release:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python
   script:
-    - uv build
-    - uv publish
-      --token "${PYPI_API_TOKEN}"
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv build
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv publish --token "${PYPI_API_TOKEN}"
   environment:
     name: pypi
     url: https://pypi.org/project/sonicwall-sdk/
@@ -290,9 +299,9 @@ typescript:release:
     - cd packages/typescript
     - pnpm install --frozen-lockfile
   script:
-    - pnpm run build
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
     - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-    - pnpm publish --no-git-checks --access public
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm publish --no-git-checks --access public
   environment:
     name: npm
     url: https://www.npmjs.com/package/@sonicwall/sdk
@@ -300,6 +309,8 @@ typescript:release:
     - if: '$CI_COMMIT_TAG =~ /^typescript\/v\d+\.\d+\.\d+/'
 
 go:release:
+  extends:
+    - .go-cache-clean
   stage: release
   image: ${GO_IMAGE}
   <<: *go-cache
