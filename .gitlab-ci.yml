@@ -18,11 +18,6 @@ stages:
   - security
   - release
 
-# All jobs use this unless they set their own `rules:` (the release jobs do).
-default:
-  rules:
-    - when: always
-
 variables:
   UV_SYSTEM_PYTHON: "false"
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
@@ -63,9 +58,15 @@ variables:
       - .golangci-bin/
       - .go-toolchain/
 
+# default:rules needs GitLab 15.11+; use a hidden job + extends for older instances.
+.integrity:
+  rules:
+    - when: always
+
 # === LINT ===
 
 python:lint:
+  extends: .integrity
   stage: lint
   image: ${PYTHON_IMAGE}
   <<: *python-cache
@@ -78,6 +79,7 @@ python:lint:
     - uv run mypy src/ --no-error-summary
 
 typescript:lint:
+  extends: .integrity
   stage: lint
   image: ${NODE_IMAGE}
   <<: *node-cache
@@ -92,6 +94,7 @@ typescript:lint:
     - pnpm run typecheck
 
 go:lint:
+  extends: .integrity
   stage: lint
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -119,6 +122,7 @@ go:lint:
 # === TEST ===
 
 python:test:
+  extends: .integrity
   stage: test
   image: ${PYTHON_IMAGE}
   <<: *python-cache
@@ -140,6 +144,7 @@ python:test:
     expire_in: 1 week
 
 typescript:test:
+  extends: .integrity
   stage: test
   image: ${NODE_IMAGE}
   <<: *node-cache
@@ -158,6 +163,7 @@ typescript:test:
     expire_in: 1 week
 
 go:test:
+  extends: .integrity
   stage: test
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -189,6 +195,7 @@ go:test:
 # === BUILD ===
 
 python:build:
+  extends: .integrity
   stage: build
   image: ${PYTHON_IMAGE}
   <<: *python-cache
@@ -203,6 +210,7 @@ python:build:
     expire_in: 1 week
 
 typescript:build:
+  extends: .integrity
   stage: build
   image: ${NODE_IMAGE}
   <<: *node-cache
@@ -219,6 +227,7 @@ typescript:build:
     expire_in: 1 week
 
 go:build:
+  extends: .integrity
   stage: build
   image: ${GO_IMAGE}
   <<: *go-cache
@@ -230,6 +239,7 @@ go:build:
 # === SECURITY (dependency / vuln scan — pipeline fails if OSV reports issues) ===
 
 security:osv-scan:
+  extends: .integrity
   stage: security
   dependencies: []
   image: alpine:3.20
