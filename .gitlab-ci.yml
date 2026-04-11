@@ -1,15 +1,16 @@
-# Integrity checks run on MRs and branch pushes (e.g. dev); release jobs on version tags.
+# Integrity checks run on MRs and branch pushes (e.g. dev); release jobs on tags and/or default branch.
+#
+# Trusted publishing (no long-lived PyPI/npm publish tokens in CI when configured):
+# - PyPI: https://docs.pypi.org/trusted-publishers/ — publisher type GitLab CI/CD, CI file `.gitlab-ci.yml`
+# - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; requires GitLab.com shared runners (not self-hosted)
 #
 # - No duplicate MR + branch push for the same branch (GitLab workflow pattern).
-# - No second full pipeline on push to the default branch after merge: trust the green MR pipeline.
-#   Use "Run pipeline" (web/api) on main if you ever need a one-off. Require MR pipeline success in project settings.
+# - Default-branch push pipelines are enabled so `python:release` can run after merge (tradeoff: full CI runs again on main).
 # https://docs.gitlab.com/ci/yaml/workflow/
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
       when: never
     - if: $CI_COMMIT_TAG
     - if: $CI_PIPELINE_SOURCE == "web"
@@ -86,6 +87,13 @@ variables:
     - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
 
 # === LINT ===
+
+sdk:version-parity:
+  extends: .integrity
+  stage: lint
+  image: alpine:3.20
+  script:
+    - sh "${CI_PROJECT_DIR}/scripts/check-sdk-version-parity.sh"
 
 python:lint:
   extends: .integrity
@@ -275,39 +283,64 @@ security:osv-scan:
   script:
     - osv-scanner scan -r "${CI_PROJECT_DIR}"
 
-# === RELEASE (tag only — only place we need custom rules) ===
+# === RELEASE (python: PyPI only from main branch when pyproject.toml changes) ===
 
 python:release:
   extends: .integrity
   stage: release
   image: ${PYTHON_IMAGE}
   <<: *python-cache
+  id_tokens:
+    PYPI_ID_TOKEN:
+      aud: pypi
   before_script:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
     - cd packages/python
   script:
     - cd "${CI_PROJECT_DIR}/packages/python" && uv build
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv publish --token "${PYPI_API_TOKEN}"
+    # Trusted publishing: GitLab sets PYPI_ID_TOKEN; uv exchanges it with PyPI. Optional legacy: PYPI_API_TOKEN.
+    - |
+      if [ -n "${PYPI_API_TOKEN:-}" ]; then
+        cd "${CI_PROJECT_DIR}/packages/python" && uv publish --token "${PYPI_API_TOKEN}"
+      else
+        cd "${CI_PROJECT_DIR}/packages/python" && uv publish
+      fi
   environment:
     name: pypi
     url: https://pypi.org/project/sonicwall-sdk/
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^python\/v\d+\.\d+\.\d+/'
+    # Only `main` branch pushes (not tags, not other branches). Runs after earlier stages succeed.
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - packages/python/pyproject.toml
 
 typescript:release:
   extends: .integrity
   stage: release
   image: ${NODE_IMAGE}
   <<: *node-cache
+  id_tokens:
+    NPM_ID_TOKEN:
+      aud: "npm:registry.npmjs.org"
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
   before_script:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
-    - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
+    # npm trusted publishing requires npm CLI >= 11.5.1 (bundled with Node 22 is older).
+    - export NPM_GLOBAL="${CI_PROJECT_DIR}/.npm-global-release"
+    - mkdir -p "${NPM_GLOBAL}"
+    - npm install npm@11.6.2 --prefix "${NPM_GLOBAL}" --no-audit --no-fund
+    - export PATH="${NPM_GLOBAL}/node_modules/.bin:${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
     - cd packages/typescript
     - pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
-    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    # Trusted publishing: npm/pnpm use NPM_ID_TOKEN; provenance is automatic for public repo + public package.
+    - |
+      if [ -n "${NPM_TOKEN:-}" ]; then
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+      fi
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm publish --no-git-checks --access public
   environment:
     name: npm
