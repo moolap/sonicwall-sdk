@@ -1,9 +1,27 @@
+# Integrity checks (lint → test → build → OSV) run on every pipeline: any branch, MRs, tags.
+# Release jobs run only when you push a matching version tag (see each release job).
+#
+# Skip duplicate pipelines: if a branch has an open MR, GitLab only runs the MR pipeline for a push
+# (not MR + branch twice). https://docs.gitlab.com/ci/yaml/workflow/
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
+
 stages:
   - lint
   - test
   - build
   - security
   - release
+
+# All jobs use this unless they set their own `rules:` (the release jobs do).
+default:
+  rules:
+    - when: always
 
 variables:
   UV_SYSTEM_PYTHON: "false"
@@ -58,8 +76,6 @@ python:lint:
     - uv run ruff check src/ tests/
     - uv run ruff format --check src/ tests/
     - uv run mypy src/ --no-error-summary
-  rules:
-    - when: always
 
 typescript:lint:
   stage: lint
@@ -74,8 +90,6 @@ typescript:lint:
   script:
     - pnpm run lint
     - pnpm run typecheck
-  rules:
-    - when: always
 
 go:lint:
   stage: lint
@@ -101,8 +115,6 @@ go:lint:
   script:
     - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
     - cd packages/go && golangci-lint run ./...
-  rules:
-    - when: always
 
 # === TEST ===
 
@@ -126,8 +138,6 @@ python:test:
         coverage_format: cobertura
         path: packages/python/coverage.xml
     expire_in: 1 week
-  rules:
-    - when: always
 
 typescript:test:
   stage: test
@@ -146,8 +156,6 @@ typescript:test:
         coverage_format: cobertura
         path: packages/typescript/coverage/cobertura-coverage.xml
     expire_in: 1 week
-  rules:
-    - when: always
 
 go:test:
   stage: test
@@ -177,8 +185,6 @@ go:test:
     paths:
       - packages/go/coverage.out
     expire_in: 1 week
-  rules:
-    - when: always
 
 # === BUILD ===
 
@@ -195,8 +201,6 @@ python:build:
     paths:
       - packages/python/dist/
     expire_in: 1 week
-  rules:
-    - when: always
 
 typescript:build:
   stage: build
@@ -213,8 +217,6 @@ typescript:build:
     paths:
       - packages/typescript/dist/
     expire_in: 1 week
-  rules:
-    - when: always
 
 go:build:
   stage: build
@@ -224,14 +226,11 @@ go:build:
     - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
   script:
     - cd "${CI_PROJECT_DIR}/packages/go" && go build ./...
-  rules:
-    - when: always
 
-# === SECURITY ===
+# === SECURITY (dependency / vuln scan — pipeline fails if OSV reports issues) ===
 
 security:osv-scan:
   stage: security
-  # OSV only needs the git checkout; skip pulling prior-stage artifacts (faster, quieter logs).
   dependencies: []
   image: alpine:3.20
   before_script:
@@ -250,12 +249,8 @@ security:osv-scan:
       chmod +x /usr/local/bin/osv-scanner
   script:
     - osv-scanner scan -r "${CI_PROJECT_DIR}"
-  allow_failure: true
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# === RELEASE ===
+# === RELEASE (tag only — only place we need custom rules) ===
 
 python:release:
   stage: release
