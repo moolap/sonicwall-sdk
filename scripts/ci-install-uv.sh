@@ -9,6 +9,8 @@ set -e
 ROOT="${CI_PROJECT_DIR:-.}"
 export UV_INSTALL_DIR="${ROOT}/.uv-install"
 mkdir -p "${UV_INSTALL_DIR}"
+# Empty file is harmless to source; avoids errors if a login profile sources this path before install.sh writes it.
+touch "${UV_INSTALL_DIR}/env"
 
 uv_on_path() {
 	command -v uv >/dev/null 2>&1

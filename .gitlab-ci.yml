@@ -57,9 +57,16 @@ variables:
       - .go-toolchain/
 
 # default:rules needs GitLab 15.11+; use a hidden job + extends for older instances.
+# Shell runners may reuse workspaces: strip stale .go (e.g. golang.org/toolchain) so cleanup/parallel jobs do not hit Permission denied.
 .integrity:
   rules:
     - when: always
+  before_script:
+    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+  after_script:
+    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
 
 # Go caches under /tmp so CI_PROJECT_DIR is never polluted with golang.org/toolchain (fixes cleanup on shell runners).
 .go-env:
@@ -146,14 +153,8 @@ python:test:
     - cd packages/python && uv sync --all-extras --quiet
   script:
     - cd "${CI_PROJECT_DIR}/packages/python" && uv run pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
+  # Cobertura report upload can still run on failed jobs on some runners; use log regex only (like typescript:test).
   coverage: '/TOTAL.*\s(\d+\%)/'
-  artifacts:
-    when: on_success
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: packages/python/coverage.xml
-    expire_in: 1 week
 
 typescript:test:
   extends: .integrity
@@ -278,6 +279,7 @@ security:osv-scan:
 # === RELEASE (tag only — only place we need custom rules) ===
 
 python:release:
+  extends: .integrity
   stage: release
   image: ${PYTHON_IMAGE}
   <<: *python-cache
@@ -294,6 +296,7 @@ python:release:
     - if: '$CI_COMMIT_TAG =~ /^python\/v\d+\.\d+\.\d+/'
 
 typescript:release:
+  extends: .integrity
   stage: release
   image: ${NODE_IMAGE}
   <<: *node-cache
@@ -315,6 +318,7 @@ typescript:release:
 
 go:release:
   extends:
+    - .integrity
     - .go-env
     - .go-cache-clean
   stage: release
