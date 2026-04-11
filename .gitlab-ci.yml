@@ -24,7 +24,7 @@ variables:
   PNPM_CACHE_DIR: "${CI_PROJECT_DIR}/.pnpm-store"
   GOPATH: "${CI_PROJECT_DIR}/.go"
   GOMODCACHE: "${CI_PROJECT_DIR}/.go/pkg/mod"
-  # Avoid golang.org/toolchain@* in module cache (read-only files break runner cleanup on some executors).
+  # Use image/local Go only; do not download toolchain into GOMODCACHE (avoids read-only toolchain trees).
   GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:20-alpine"
@@ -52,11 +52,12 @@ variables:
       - .pnpm-tool/
       - packages/typescript/node_modules/
 
+# Do not cache .go/pkg/mod: mixed Docker + shell runners can leave root-owned golang.org/toolchain@*
+# in the archive; shell cleanup then fails with "Permission denied". Module download is re-fetched each job.
 .go-cache: &go-cache
   cache:
-    key: "go-${CI_COMMIT_REF_SLUG}"
+    key: "go-${CI_COMMIT_REF_SLUG}-nomod"
     paths:
-      - .go/pkg/mod/
       - .golangci-bin/
       - .go-toolchain/
 
@@ -65,10 +66,11 @@ variables:
   rules:
     - when: always
 
-# Writable .go tree so job cleanup can delete cached mod/toolchain files.
+# Drop mod cache before workspace cleanup (best-effort if files are still writable).
 .go-cache-clean:
   after_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - chmod -R u+w "${CI_PROJECT_DIR}/.go/pkg/mod" 2>/dev/null || true
+    - rm -rf "${CI_PROJECT_DIR}/.go/pkg/mod" 2>/dev/null || true
 
 # === LINT ===
 
