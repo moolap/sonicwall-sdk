@@ -50,6 +50,14 @@ default:
   tags:
     - gdlinux
     - gdlinux-gpu
+  # Before git fetch/clean: drop read-only .go/ so `git clean -ffdx` does not warn (Permission denied).
+  # Requires GitLab 16+ (hooks). Same logic as scripts/ci-clean-go-workspace.sh.
+  hooks:
+    pre_get_sources_script:
+      - |
+        [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ] || exit 0
+        chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
 
 # Other internal runner tags (see CONTRIBUTING): GitLab ANDs `tags`, so each line below is a
 # separate profile — swap with `default.tags` above if that pool is assigned to this project.
@@ -90,18 +98,15 @@ default:
   rules:
     - when: always
   before_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
   after_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # Go jobs: remove /tmp Go trees after the job (global GOPATH/GOMODCACHE/GOCACHE point there).
 .go-cache-clean:
   after_script:
     - rm -rf "/tmp/gopath-${CI_JOB_ID}" "/tmp/gocache-${CI_JOB_ID}" 2>/dev/null || true
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # === LINT ===
 

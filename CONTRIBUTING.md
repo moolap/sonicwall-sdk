@@ -199,6 +199,8 @@ To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD �
 
 Jobs use **`image: ...`** (Docker images). Your runners should use the **Docker** or **Kubernetes** executor unless you intentionally run on **shell** runners with those tools preinstalled on the host.
 
+**Go / `.go` “Permission denied” warnings:** If the module cache or `golang.org/toolchain` ends up under **`${CI_PROJECT_DIR}/.go`**, Go stores many files as read-only. Git’s clean step then logs **`warning: failed to remove … Permission denied`**. The pipeline runs **`scripts/ci-clean-go-workspace.sh`** (chmod `u+rwx`, then `rm -rf`) in **`hooks:pre_get_sources_script`** (before Git cleans), in **`.integrity`**, and at the start of **`ci-ensure-go.sh`**. If warnings persist, files may be **root-owned** (e.g. bind-mounted build dirs); fix runner user/ownership or add a **`pre_clone_script`** on the runner host.
+
 ### Trusted publishing (PyPI and npm)
 
 Register **GitLab CI/CD** as a trusted publisher for **PyPI** and **npm** (CI file **`.gitlab-ci.yml`**). The job uses GitLab **`environment: pypi`** for PyPI OIDC; keep your PyPI trusted publisher environment name aligned with that.
