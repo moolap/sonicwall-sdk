@@ -404,7 +404,8 @@ typescript:release:
       if [ -n "${NPM_TOKEN:-}" ]; then
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
       fi
-    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm publish --no-git-checks --access public
+    # Trusted publishing: npm 11.5.1+ exchanges GitLab NPM_ID_TOKEN (pnpm publish does not).
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && npm publish --access public
   environment:
     name: npm
     url: https://www.npmjs.com/package/@sonicwall/sdk
