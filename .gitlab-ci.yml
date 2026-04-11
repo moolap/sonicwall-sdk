@@ -7,6 +7,9 @@
 # - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; OIDC is only supported on GitLab.com shared runners today (use NPM_TOKEN on private runners)
 #
 # Runner selection: `default.tags` must match tag(s) on your project/group runners (`gitlab-runner register --tag-list`).
+# GitLab ANDs job tags — one runner must have every tag listed. Do not mix unrelated pools (e.g. linux + macos) in one list.
+# Other Gandiva pool tags (use alone or add onto your runners if you need multiple pools to match the same list):
+#   gdlab-linux, gdlab-spark, gdlab-mac, macos
 # In GitLab: Settings → CI/CD → Runners → turn off "Enable shared runners for this project" so only your runners are used.
 # GitLab does not expand CI variables in `tags`; change the list below if your tag name differs.
 #
@@ -46,6 +49,14 @@ variables:
 default:
   tags:
     - gdlinux
+    - gdlinux-gpu
+
+# Other internal runner tags (see CONTRIBUTING): GitLab ANDs `tags`, so each line below is a
+# separate profile — swap with `default.tags` above if that pool is assigned to this project.
+#   gdlab-linux
+#   gdlab-spark
+#   gdlab-mac
+#   macos
 
 # --- Cache templates ---
 

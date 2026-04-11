@@ -178,7 +178,22 @@ Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`packa
 
 ### CI runners (private vs GitLab shared)
 
-Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`** (currently **`gdlinux`**, to match project runners). Edit the YAML if your runners use different **`gitlab-runner register --tag-list`** tags.
+Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`**. **GitLab matches every tag in the list on the same runner (AND).** You cannot list `gdlinux` and `macos` together unless one runner is tagged with both.
+
+**Current default:** **`gdlinux`** and **`gdlinux-gpu`** (the assigned project runner in GitLab shows both).
+
+**Other runner tags** used elsewhere in Gandiva (assign / link the runner to this project, bring it **online**, then point CI at it):
+
+| Tag | Typical use |
+|-----|-------------|
+| **`gdlab-linux`** | Lab Linux runners (`gd-vm-infra`) |
+| **`gdlab-spark`** | Spark lab runners |
+| **`gdlab-mac`** | Mac lab runners |
+| **`macos`** | e.g. `srasta-devkit` |
+
+To use one of those pools **instead**, replace **`default.tags`** with a **single** tag (or a set that exists together on one runner), e.g. only `- gdlab-linux`. The comments under **`default.tags`** in **`.gitlab-ci.yml`** list the same options.
+
+To let **several different runners** run the same pipeline without editing YAML, give them a **shared** tag (e.g. `sonicwall-sdk-ci`) in **`config.toml`** / GitLab runner settings and set **`default.tags`** to that tag only.
 
 To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
 
