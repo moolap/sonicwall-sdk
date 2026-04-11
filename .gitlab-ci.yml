@@ -22,10 +22,6 @@ variables:
   UV_SYSTEM_PYTHON: "false"
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   PNPM_CACHE_DIR: "${CI_PROJECT_DIR}/.pnpm-store"
-  GOPATH: "${CI_PROJECT_DIR}/.go"
-  GOMODCACHE: "${CI_PROJECT_DIR}/.go/pkg/mod"
-  # Use image/local Go only; do not download toolchain into GOMODCACHE (avoids read-only toolchain trees).
-  GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:20-alpine"
   GO_IMAGE: "golang:1.25-alpine"
@@ -52,8 +48,7 @@ variables:
       - .pnpm-tool/
       - packages/typescript/node_modules/
 
-# Do not cache .go/pkg/mod: mixed Docker + shell runners can leave root-owned golang.org/toolchain@*
-# in the archive; shell cleanup then fails with "Permission denied". Module download is re-fetched each job.
+# Do not cache module downloads (GOMODCACHE is under /tmp per job; see .go-env).
 .go-cache: &go-cache
   cache:
     key: "go-${CI_COMMIT_REF_SLUG}-nomod"
@@ -66,11 +61,20 @@ variables:
   rules:
     - when: always
 
-# Drop mod cache before workspace cleanup (best-effort if files are still writable).
+# Go caches under /tmp so CI_PROJECT_DIR is never polluted with golang.org/toolchain (fixes cleanup on shell runners).
+.go-env:
+  variables:
+    GOPATH: "/tmp/gopath-${CI_JOB_ID}"
+    GOMODCACHE: "/tmp/gopath-${CI_JOB_ID}/pkg/mod"
+    GOCACHE: "/tmp/gocache-${CI_JOB_ID}"
+    GOTOOLCHAIN: local
+
+# Drop per-job Go dirs and any legacy project .go left by older pipelines or shared workspaces.
 .go-cache-clean:
   after_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go/pkg/mod" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go/pkg/mod" 2>/dev/null || true
+    - rm -rf "/tmp/gopath-${CI_JOB_ID}" "/tmp/gocache-${CI_JOB_ID}" 2>/dev/null || true
+    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
 
 # === LINT ===
 
@@ -104,6 +108,7 @@ typescript:lint:
 go:lint:
   extends:
     - .integrity
+    - .go-env
     - .go-cache-clean
   stage: lint
   image: ${GO_IMAGE}
@@ -127,7 +132,7 @@ go:lint:
       fi
   script:
     - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
-    - cd packages/go && golangci-lint run ./...
+    - cd "${CI_PROJECT_DIR}/packages/go" && golangci-lint run ./...
 
 # === TEST ===
 
@@ -162,17 +167,13 @@ typescript:test:
     - cd packages/typescript && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run test --coverage
-  artifacts:
-    when: on_success
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: packages/typescript/coverage/cobertura-coverage.xml
-    expire_in: 1 week
+  # Cobertura report upload runs even when the job fails on some runners; omit reports.* to avoid hard errors.
+  coverage: '/Statements\s+:\s*(\d+(?:\.\d+)?%)/'
 
 go:test:
   extends:
     - .integrity
+    - .go-env
     - .go-cache-clean
   stage: test
   image: ${GO_IMAGE}
@@ -198,6 +199,7 @@ go:test:
       fi
       go tool cover -func=coverage.out | tail -1
   artifacts:
+    when: on_success
     paths:
       - packages/go/coverage.out
     expire_in: 1 week
@@ -239,6 +241,7 @@ typescript:build:
 go:build:
   extends:
     - .integrity
+    - .go-env
     - .go-cache-clean
   stage: build
   image: ${GO_IMAGE}
@@ -312,6 +315,7 @@ typescript:release:
 
 go:release:
   extends:
+    - .go-env
     - .go-cache-clean
   stage: release
   image: ${GO_IMAGE}
