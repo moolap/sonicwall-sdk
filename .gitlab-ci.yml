@@ -22,6 +22,11 @@ variables:
   UV_SYSTEM_PYTHON: "false"
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   PNPM_CACHE_DIR: "${CI_PROJECT_DIR}/.pnpm-store"
+  # Every job: never put Go module/toolchain under the repo (avoids undeletable golang.org/toolchain on shell runners).
+  GOPATH: "/tmp/gopath-${CI_JOB_ID}"
+  GOMODCACHE: "/tmp/gopath-${CI_JOB_ID}/pkg/mod"
+  GOCACHE: "/tmp/gocache-${CI_JOB_ID}"
+  GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:22-alpine"
   GO_IMAGE: "golang:1.25-alpine"
@@ -48,7 +53,7 @@ variables:
       - .pnpm-tool/
       - packages/typescript/node_modules/
 
-# Do not cache module downloads (GOMODCACHE is under /tmp per job; see .go-env).
+# Do not cache module downloads (GOMODCACHE is global under /tmp per job).
 .go-cache: &go-cache
   cache:
     key: "go-${CI_COMMIT_REF_SLUG}-nomod"
@@ -68,15 +73,7 @@ variables:
     - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
     - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
 
-# Go caches under /tmp so CI_PROJECT_DIR is never polluted with golang.org/toolchain (fixes cleanup on shell runners).
-.go-env:
-  variables:
-    GOPATH: "/tmp/gopath-${CI_JOB_ID}"
-    GOMODCACHE: "/tmp/gopath-${CI_JOB_ID}/pkg/mod"
-    GOCACHE: "/tmp/gocache-${CI_JOB_ID}"
-    GOTOOLCHAIN: local
-
-# Drop per-job Go dirs and any legacy project .go left by older pipelines or shared workspaces.
+# Go jobs: remove /tmp Go trees after the job (global GOPATH/GOMODCACHE/GOCACHE point there).
 .go-cache-clean:
   after_script:
     - rm -rf "/tmp/gopath-${CI_JOB_ID}" "/tmp/gocache-${CI_JOB_ID}" 2>/dev/null || true
@@ -115,7 +112,6 @@ typescript:lint:
 go:lint:
   extends:
     - .integrity
-    - .go-env
     - .go-cache-clean
   stage: lint
   image: ${GO_IMAGE}
@@ -174,7 +170,6 @@ typescript:test:
 go:test:
   extends:
     - .integrity
-    - .go-env
     - .go-cache-clean
   stage: test
   image: ${GO_IMAGE}
@@ -242,7 +237,6 @@ typescript:build:
 go:build:
   extends:
     - .integrity
-    - .go-env
     - .go-cache-clean
   stage: build
   image: ${GO_IMAGE}
@@ -319,7 +313,6 @@ typescript:release:
 go:release:
   extends:
     - .integrity
-    - .go-env
     - .go-cache-clean
   stage: release
   image: ${GO_IMAGE}
