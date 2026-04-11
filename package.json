@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "msw"]
+  },
   "scripts": {
     "build": "turbo run build",
     "test": "turbo run test",

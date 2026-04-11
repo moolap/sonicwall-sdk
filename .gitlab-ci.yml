@@ -82,6 +82,7 @@ default:
     paths:
       - .pnpm-store/
       - .pnpm-tool/
+      - node_modules/
       - packages/typescript/node_modules/
 
 # Do not cache module downloads (GOMODCACHE is global under /tmp per job).
@@ -211,7 +212,7 @@ typescript:lint:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run lint && pnpm run typecheck
 
@@ -267,7 +268,7 @@ typescript:test:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run test --coverage
   # Cobertura report upload runs even when the job fails on some runners; omit reports.* to avoid hard errors.
@@ -332,7 +333,7 @@ typescript:build:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
   artifacts:
@@ -420,8 +421,7 @@ typescript:release:
     - mkdir -p "${NPM_GLOBAL}"
     - npm install npm@11.6.2 --prefix "${NPM_GLOBAL}" --no-audit --no-fund
     - export PATH="${NPM_GLOBAL}/node_modules/.bin:${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript
-    - pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
     - |
