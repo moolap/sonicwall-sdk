@@ -25,20 +25,13 @@ Pull requests with commits lacking sign-off will not be merged.
 
 Branch off `main`. Rebase before opening an MR — do not merge main into your branch.
 
-**Do not push commits directly to `main`.** All changes must land via merge request (e.g. from `dev` or a feature branch). This is enforced in GitLab with **protected branches** (see below), not in this repository’s YAML.
+**Do not push commits directly to `main`.** All changes should land via merge request. Enforce that by **protecting `main`** in GitLab (CI cannot block `git push`):
 
-### For maintainers: enforce “no direct pushes” to `main`
+1. **Settings → Repository → Protected branches** → protect **`main`**.
+2. **Allowed to push:** **No one**.
+3. **Allowed to merge:** roles that may merge MRs (e.g. Maintainers).
 
-CI cannot block `git push`; configure the project in GitLab:
-
-1. **Settings → Repository → Protected branches** (or **Settings → Repository → Protected branches** on older layouts).
-2. Add or edit protection for **`main`** (use your real default branch name if different).
-3. Set **Allowed to push** to **No one** (or only a break-glass role you rarely use).  
-   Set **Allowed to merge** to the roles that may complete MRs (e.g. **Maintainers**, or **Developers + Maintainers**).
-4. Enable **“Require merge requests for all changes”** if your tier offers it (same area or **Settings → General → Merge request**), so the default branch only moves through MRs.
-5. Under **Merge requests**, keep **“Pipelines must succeed”** (or equivalent) tied to the **MR pipeline**, since `main` may not run a push pipeline after merge (see `.gitlab-ci.yml` `workflow`).
-
-After this, `git push origin main` is rejected for normal users; only merges through the GitLab UI (or API) from an approved MR update `main`.
+Optional: **Merge requests → Pipelines must succeed** on the MR, since `main` may not run a push pipeline after merge (see `.gitlab-ci.yml` `workflow`).
 
 ## Commit Conventions
 
