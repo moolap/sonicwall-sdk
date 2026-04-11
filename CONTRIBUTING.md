@@ -176,8 +176,16 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 
 Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, and **`version.go`** aligned (use the sync script). No CI job pushes git commits for releases.
 
+### CI runners (private vs GitLab shared)
+
+Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`** (currently **`sonicwall-sdk-ci`**). Register your runners with that tag, or edit the YAML to match your **`gitlab-runner register --tag-list`**.
+
+To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
+
+Jobs use **`image: ...`** (Docker images). Your runners should use the **Docker** or **Kubernetes** executor unless you intentionally run on **shell** runners with those tools preinstalled on the host.
+
 ### Trusted publishing (PyPI and npm)
 
 Register **GitLab CI/CD** as a trusted publisher for **PyPI** and **npm** (CI file **`.gitlab-ci.yml`**). The job uses GitLab **`environment: pypi`** for PyPI OIDC; keep your PyPI trusted publisher environment name aligned with that.
 
-Optional fallbacks: **`PYPI_API_TOKEN`**, **`NPM_TOKEN`**. npm trusted publishing needs **GitLab.com shared runners** (not self-hosted) per npm’s docs.
+Optional fallbacks: **`PYPI_API_TOKEN`**, **`NPM_TOKEN`**. **npm OIDC** trusted publishing is limited to **GitLab.com shared runners** today; on **self-hosted runners**, set **`NPM_TOKEN`** (granular publish token) for **`typescript:release`**.

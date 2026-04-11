@@ -4,7 +4,11 @@
 #
 # Trusted publishing (no long-lived PyPI/npm publish tokens in CI when configured):
 # - PyPI: https://docs.pypi.org/trusted-publishers/ — publisher type GitLab CI/CD, CI file `.gitlab-ci.yml`, environment pypi
-# - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; requires GitLab.com shared runners (not self-hosted)
+# - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; OIDC is only supported on GitLab.com shared runners today (use NPM_TOKEN on private runners)
+#
+# Runner selection: `default.tags` must match tag(s) on your project/group runners (`gitlab-runner register --tag-list`).
+# In GitLab: Settings → CI/CD → Runners → turn off "Enable shared runners for this project" so only your runners are used.
+# GitLab does not expand CI variables in `tags`; change the list below if your tag name differs.
 #
 # No merge-request pipelines — CI runs on branch/tag pushes only (see CONTRIBUTING.md).
 # https://docs.gitlab.com/ci/yaml/workflow/
@@ -38,6 +42,10 @@ variables:
   OSV_SCANNER_VERSION: "v2.3.5"
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
   GOLANGCI_LINT_VERSION: "v2.11.4"
+
+default:
+  tags:
+    - sonicwall-sdk-ci
 
 # --- Cache templates ---
 
