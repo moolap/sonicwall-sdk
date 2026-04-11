@@ -27,7 +27,7 @@ Branch off **`dev`** for everyday work (or open MRs into `dev`). Rebase before o
 
 **Do not push commits directly to `main`.** Land changes via **merge request** (`dev` → `main`). This matches the **Srasta** workflow: integration on **`main`**, **releases only when you push a version tag**.
 
-CI includes **`validate:no-direct-push-to-main`** on **`main`** only (even if GitLab’s default branch is **`dev`**): the tip commit must be a **merge commit** (more than one parent). **GitLab “Squash merge”** yields one parent and **fails** that check—use a **merge commit** for `dev` → `main` (or turn off squash for that MR). Tags **`vX.Y.Z`** are checked by **`validate:tag-from-main`** (commit must be reachable from `main`).
+CI includes **`validate:no-direct-push-to-main`** on **`main`** only (even if GitLab’s default branch is **`dev`**): the tip commit must be a **merge commit** (more than one parent). **GitLab “Squash merge”** yields one parent and **fails** that check—use a **merge commit** for `dev` → `main` (or turn off squash for that MR). Tags **`X.Y.Z`** or **`vX.Y.Z`** are checked by **`validate:tag-from-main`** (commit must be reachable from `main`).
 
 Enforce human access with **protected branches** on **`main`**:
 
@@ -161,7 +161,7 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 
 **Branches:** **`dev`** and **`main`** run the same **lint → test → build → security** jobs on every push. **Merging to `main` does not publish** to PyPI or npm.
 
-**Releases:** When `main` has the commit you want to ship, you **tag** it **`vX.Y.Z`** (same pattern as Srasta). That starts a **tag pipeline** that:
+**Releases:** When `main` has the commit you want to ship, you **tag** it **`X.Y.Z`** or **`vX.Y.Z`** (Srasta often uses **`v`**; both work here). That starts a **tag pipeline** that:
 
 1. Runs the same checks again, plus **`validate:release-versions`** (root **`VERSION`** must match the tag, and Python / TypeScript / Go metadata must match **`VERSION`**).
 2. Runs **`validate:tag-from-main`** (the tagged commit must be on the **`main`** line).
@@ -172,7 +172,7 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 1. Push to **`dev`** → green pipeline.
 2. Merge **`dev` → `main`** via MR (**merge commit**, not squash if you rely on `validate:no-direct-push-to-main`).
 3. On **`main`**, set **`VERSION`** to the release (e.g. `0.2.0`), run **`python3 scripts/sync_versions_from_file.py`**, commit, push to **`main`** (via MR from a short-lived branch is fine).
-4. Tag and push: **`git tag v0.2.0`** && **`git push origin v0.2.0`** (tag must point at the commit that contains the synced files).
+4. Tag and push: **`git tag 0.2.0`** (or **`git tag v0.2.0`**) && **`git push origin 0.2.0`** (or **`v0.2.0`**) — tag must point at the commit that contains the synced files.
 
 Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, and **`version.go`** aligned (use the sync script). No CI job pushes git commits for releases.
 
