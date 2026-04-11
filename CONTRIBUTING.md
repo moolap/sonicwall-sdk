@@ -25,6 +25,14 @@ Pull requests with commits lacking sign-off will not be merged.
 
 Branch off `main`. Rebase before opening an MR — do not merge main into your branch.
 
+**Do not push commits directly to `main`.** All changes should land via merge request. Enforce that by **protecting `main`** in GitLab (CI cannot block `git push`):
+
+1. **Settings → Repository → Protected branches** → protect **`main`**.
+2. **Allowed to push:** **No one**.
+3. **Allowed to merge:** roles that may merge MRs (e.g. Maintainers).
+
+Optional: **Merge requests → Pipelines must succeed** on the MR, since `main` may not run a push pipeline after merge (see `.gitlab-ci.yml` `workflow`).
+
 ## Commit Conventions
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):
@@ -145,12 +153,44 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 - [ ] `CHANGELOG.md` entry under `## Unreleased`
 - [ ] CI pipeline green
 
+## Unified SDK version
+
+All three language packages ship the **same semver**. The canonical value lives in the repository root **`VERSION`** file; CI enforces that it matches:
+
+- `packages/python/pyproject.toml` (`version = …`)
+- `packages/typescript/package.json` (`"version"`)
+- `packages/go/version.go` (`const Version`)
+
+**Process:** Treat the SDK as one product. For any user-visible bug fix, feature, or behavior change, update **Python, TypeScript, and Go** in the same merge request (or split MRs that land together before release). Do not release languages at different versions.
+
+To bump after editing **`VERSION`**:
+
+```bash
+./scripts/sync-sdk-version.sh
+```
+
+Commit the updated files together. **Release tags** for npm and Go must use the same numbers, e.g. `typescript/v0.2.0` and `go/v0.2.0` when `VERSION` is `0.2.0`.
+
+**First PyPI publish:** With the current tree, the version is **`0.1.0`** (see `VERSION`). The first successful `python:release` on `main` uploads that version unless you bump first.
+
 ## Release Process
 
-Releases are triggered by git tags pushed to `main`:
+**Python (PyPI):** A **push to `main`** that changes **`packages/python/pyproject.toml`** (usually a version bump) triggers `python:release` after lint/test/build/security pass on that pipeline. Tags and other branches do **not** publish Python to PyPI. Because CI requires parity with **`VERSION`**, bump **`VERSION`** and run **`./scripts/sync-sdk-version.sh`** (or update all four places by hand) so `pyproject.toml` changes in the same commit.
 
-- `python/v0.2.0` → publishes Python package to PyPI
+**TypeScript / Go:** Tag-driven:
+
 - `typescript/v0.2.0` → publishes npm package
-- `go/v0.2.0` → creates Go module tag
+- `go/v0.2.0` → Go module tag
 
-Only maintainers can push version tags. Use [Changesets](https://github.com/changesets/changesets) for TypeScript versioning.
+Only maintainers should merge to `main` and push version tags. Use [Changesets](https://github.com/changesets/changesets) for TypeScript versioning.
+
+Merging to `main` runs a **full** GitLab pipeline again (not only the publish job).
+
+### Trusted publishing (PyPI and npm)
+
+CI is wired for **OIDC trusted publishing** (short-lived tokens, no long-lived publish secrets). Before your first release, register this repo in each registry:
+
+1. **PyPI** — project → *Manage* → *Publishing* → *Add a new pending publisher* → **GitLab CI/CD**. Use CI file **`.gitlab-ci.yml`**, namespace/project, and environment **`pypi`** (must match `python:release` → `environment.name` in `.gitlab-ci.yml`).
+2. **npm** — package → *Settings* → *Trusted publishing* → **GitLab CI/CD**. CI file **`.gitlab-ci.yml`**. Requires **GitLab.com shared runners**; npm does not support self-hosted runners for this yet.
+
+After a successful publish, remove any legacy **`PYPI_API_TOKEN`** / **`NPM_TOKEN`** CI variables if you no longer need the fallback paths in `.gitlab-ci.yml`. For a **private** GitLab repo, npm may publish but **not** attach provenance (npm limitation).
