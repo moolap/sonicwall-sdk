@@ -14,8 +14,8 @@ variables:
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:20-alpine"
   GO_IMAGE: "golang:1.22-alpine"
-  # Pinned release tag — ghcr.io/google/osv-scanner:v1 does not exist (manifest unknown).
-  OSV_SCANNER_IMAGE: "ghcr.io/google/osv-scanner:v2.3.5"
+  # GitHub release (not GHCR): avoids Docker ENTRYPOINT + non-root job user not being able to run /root/osv-scanner.
+  OSV_SCANNER_VERSION: "v2.3.5"
 
 # --- Cache templates ---
 
@@ -226,13 +226,25 @@ go:build:
 
 security:osv-scan:
   stage: security
-  # Image sets ENTRYPOINT=osv-scanner; without clearing it, the runner's sh -c is passed as args (-c breaks).
-  image:
-    name: ${OSV_SCANNER_IMAGE}
-    entrypoint: [""]
+  # OSV only needs the git checkout; skip pulling prior-stage artifacts (faster, quieter logs).
+  dependencies: []
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache ca-certificates curl
+    - |
+      set -e
+      ARCH="$(uname -m)"
+      case "$ARCH" in
+        x86_64) DL_SUFFIX="linux_amd64" ;;
+        aarch64 | arm64) DL_SUFFIX="linux_arm64" ;;
+        *) echo "osv-scanner: unsupported arch ${ARCH}" >&2; exit 1 ;;
+      esac
+      URL="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_${DL_SUFFIX}"
+      install -d /usr/local/bin
+      curl -fsSL -o /usr/local/bin/osv-scanner "$URL"
+      chmod +x /usr/local/bin/osv-scanner
   script:
-    # Binary is /root/osv-scanner; not on PATH when entrypoint is cleared for GitLab's sh -c wrapper.
-    - /root/osv-scanner scan -r "${CI_PROJECT_DIR}"
+    - osv-scanner scan -r "${CI_PROJECT_DIR}"
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
