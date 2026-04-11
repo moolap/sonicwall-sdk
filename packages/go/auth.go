@@ -52,7 +52,7 @@ func (a *authManager) authenticate(ctx context.Context) error {
 	if err != nil {
 		return &ConnectionError{Cause: err}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		body := &SonicOSErrorResponse{}
@@ -140,7 +140,7 @@ func (a *authManager) logout(ctx context.Context) error {
 	if err != nil {
 		return nil // Best-effort
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return nil
 }
