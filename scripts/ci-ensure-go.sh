@@ -6,7 +6,7 @@
 set -e
 ROOT="${CI_PROJECT_DIR:-.}"
 # Match packages/go/go.mod; patch level is the bootstrap tarball from go.dev
-GO_BOOTSTRAP_VERSION="${GO_BOOTSTRAP_VERSION:-1.22.10}"
+GO_BOOTSTRAP_VERSION="${GO_BOOTSTRAP_VERSION:-1.25.9}"
 INSTALL_DIR="${ROOT}/.go-toolchain"
 
 if command -v go >/dev/null 2>&1; then

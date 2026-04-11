@@ -56,7 +56,7 @@ Breaking changes: add `!` after scope and a `BREAKING CHANGE:` footer.
 
 - Python 3.10+, `uv` (https://docs.astral.sh/uv/)
 - Node.js 20+, `pnpm` 10
-- Go 1.22+
+- Go 1.25.9+
 - `golangci-lint` (https://golangci-lint.run/usage/install/)
 
 ### Python

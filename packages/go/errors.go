@@ -164,7 +164,7 @@ func newHTTPError(statusCode int, body *SonicOSErrorResponse) error {
 
 	if body != nil && len(body.Status.Info) > 0 {
 		base.SonicOSCode = body.Status.Info[0].Code
-		base.SonicWallError.message = body.Status.Info[0].Message
+		base.message = body.Status.Info[0].Message
 	}
 
 	if base.SonicOSCode == SonicOSCodeSessionExpired {
