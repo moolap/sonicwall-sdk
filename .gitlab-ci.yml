@@ -114,7 +114,7 @@ validate:no-direct-push-to-main:
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
 
-# Release tags vX.Y.Z must point to a commit on the default branch (dev -> main -> tag).
+# Release tags `X.Y.Z` or `vX.Y.Z` must point to a commit on main (dev -> main -> tag).
 validate:tag-from-main:
   extends: .integrity
   stage: lint
@@ -135,9 +135,9 @@ validate:tag-from-main:
         exit 1
       fi
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
 
-# Tag vX.Y.Z must match root VERSION and all package metadata (like Srasta VERSION vs tag).
+# Release tag must match root VERSION and all package metadata (`0.1.0` or `v0.1.0`).
 validate:release-versions:
   extends: .integrity
   stage: lint
@@ -147,8 +147,9 @@ validate:release-versions:
       set -eu
       test -f VERSION || { echo "ERROR: VERSION file missing"; exit 1; }
       V="$(tr -d '[:space:]' < VERSION)"
-      if [ "v${V}" != "${CI_COMMIT_TAG}" ]; then
-        echo "ERROR: VERSION='${V}' does not match tag '${CI_COMMIT_TAG}' (expected v\${VERSION})"
+      TAG_VER="${CI_COMMIT_TAG#v}"
+      if [ "${TAG_VER}" != "${V}" ]; then
+        echo "ERROR: VERSION='${V}' does not match tag '${CI_COMMIT_TAG}' (use \${V} or v\${V})"
         exit 1
       fi
       PY="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' packages/python/pyproject.toml)"
@@ -161,7 +162,7 @@ validate:release-versions:
       fi
       echo "OK — release tag ${CI_COMMIT_TAG} matches VERSION and all packages."
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
 
 python:lint:
   extends: .integrity
@@ -376,7 +377,7 @@ python:release:
     name: pypi
     url: https://pypi.org/project/sonicwall-sdk/
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
 
 typescript:release:
   extends: .integrity
@@ -408,7 +409,7 @@ typescript:release:
     name: npm
     url: https://www.npmjs.com/package/@sonicwall/sdk
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
 
 go:release:
   extends:
@@ -426,4 +427,4 @@ go:release:
       echo "Go proxy expects a module tag at the same commit, e.g.:"
       echo "  git tag go/v${CI_COMMIT_TAG#v} ${CI_COMMIT_SHA} && git push origin go/v${CI_COMMIT_TAG#v}"
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
