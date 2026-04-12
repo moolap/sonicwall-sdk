@@ -49,6 +49,8 @@ packages/go/bin/
 packages/go/vendor/
 .golangci-bin/
 .go-toolchain/
+# Leaked GOMODCACHE / toolchain under repo (CI + shell runners); never commit
+.go/
 
 # IDE
 .idea/

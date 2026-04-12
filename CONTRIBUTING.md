@@ -176,8 +176,33 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 
 Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, and **`version.go`** aligned (use the sync script). No CI job pushes git commits for releases.
 
+### CI runners (private vs GitLab shared)
+
+Pipelines are pinned with **`default.tags`** in **`.gitlab-ci.yml`**. **GitLab matches every tag in the list on the same runner (AND).** You cannot list `gdlinux` and `macos` together unless one runner is tagged with both.
+
+**Current default:** **`gdlinux`** and **`gdlinux-gpu`** (the assigned project runner in GitLab shows both).
+
+**Other runner tags** used elsewhere in Gandiva (assign / link the runner to this project, bring it **online**, then point CI at it):
+
+| Tag | Typical use |
+|-----|-------------|
+| **`gdlab-linux`** | Lab Linux runners (`gd-vm-infra`) |
+| **`gdlab-spark`** | Spark lab runners |
+| **`gdlab-mac`** | Mac lab runners |
+| **`macos`** | e.g. `srasta-devkit` |
+
+To use one of those pools **instead**, replace **`default.tags`** with a **single** tag (or a set that exists together on one runner), e.g. only `- gdlab-linux`. The comments under **`default.tags`** in **`.gitlab-ci.yml`** list the same options.
+
+To let **several different runners** run the same pipeline without editing YAML, give them a **shared** tag (e.g. `sonicwall-sdk-ci`) in **`config.toml`** / GitLab runner settings and set **`default.tags`** to that tag only.
+
+To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
+
+Jobs use **`image: ...`** (Docker images). Your runners should use the **Docker** or **Kubernetes** executor unless you intentionally run on **shell** runners with those tools preinstalled on the host.
+
+**Go / `.go` “Permission denied” warnings:** If the module cache or `golang.org/toolchain` ends up under **`${CI_PROJECT_DIR}/.go`**, Go stores many files as read-only. Git’s clean step then logs **`warning: failed to remove … Permission denied`**. The pipeline runs **`scripts/ci-clean-go-workspace.sh`** (chmod `u+rwx`, then `rm -rf`) in **`hooks:pre_get_sources_script`** (before Git cleans), in **`.integrity`**, and at the start of **`ci-ensure-go.sh`**. If warnings persist, files may be **root-owned** (e.g. bind-mounted build dirs); fix runner user/ownership or add a **`pre_clone_script`** on the runner host.
+
 ### Trusted publishing (PyPI and npm)
 
 Register **GitLab CI/CD** as a trusted publisher for **PyPI** and **npm** (CI file **`.gitlab-ci.yml`**). The job uses GitLab **`environment: pypi`** for PyPI OIDC; keep your PyPI trusted publisher environment name aligned with that.
 
-Optional fallbacks: **`PYPI_API_TOKEN`**, **`NPM_TOKEN`**. npm trusted publishing needs **GitLab.com shared runners** (not self-hosted) per npm’s docs.
+Optional fallbacks: **`PYPI_API_TOKEN`**, **`NPM_TOKEN`**. **npm OIDC** trusted publishing is limited to **GitLab.com shared runners** today; on **self-hosted runners**, set **`NPM_TOKEN`** (granular publish token) for **`typescript:release`**.

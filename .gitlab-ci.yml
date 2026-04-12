@@ -4,7 +4,14 @@
 #
 # Trusted publishing (no long-lived PyPI/npm publish tokens in CI when configured):
 # - PyPI: https://docs.pypi.org/trusted-publishers/ — publisher type GitLab CI/CD, CI file `.gitlab-ci.yml`, environment pypi
-# - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; requires GitLab.com shared runners (not self-hosted)
+# - npm: https://docs.npmjs.com/trusted-publishers — GitLab CI/CD, same CI file; OIDC is only supported on GitLab.com shared runners today (use NPM_TOKEN on private runners)
+#
+# Runner selection: `default.tags` must match tag(s) on your project/group runners (`gitlab-runner register --tag-list`).
+# GitLab ANDs job tags — one runner must have every tag listed. Do not mix unrelated pools (e.g. linux + macos) in one list.
+# Other Gandiva pool tags (use alone or add onto your runners if you need multiple pools to match the same list):
+#   gdlab-linux, gdlab-spark, gdlab-mac, macos
+# In GitLab: Settings → CI/CD → Runners → turn off "Enable shared runners for this project" so only your runners are used.
+# GitLab does not expand CI variables in `tags`; change the list below if your tag name differs.
 #
 # No merge-request pipelines — CI runs on branch/tag pushes only (see CONTRIBUTING.md).
 # https://docs.gitlab.com/ci/yaml/workflow/
@@ -39,6 +46,26 @@ variables:
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
   GOLANGCI_LINT_VERSION: "v2.11.4"
 
+default:
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+  # Before git fetch/clean: drop read-only .go/ so `git clean -ffdx` does not warn (Permission denied).
+  # Requires GitLab 16+ (hooks). Same logic as scripts/ci-clean-go-workspace.sh.
+  hooks:
+    pre_get_sources_script:
+      - |
+        [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ] || exit 0
+        chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+
+# Other internal runner tags (see CONTRIBUTING): GitLab ANDs `tags`, so each line below is a
+# separate profile — swap with `default.tags` above if that pool is assigned to this project.
+#   gdlab-linux
+#   gdlab-spark
+#   gdlab-mac
+#   macos
+
 # --- Cache templates ---
 
 .python-cache: &python-cache
@@ -55,6 +82,7 @@ variables:
     paths:
       - .pnpm-store/
       - .pnpm-tool/
+      - node_modules/
       - packages/typescript/node_modules/
 
 # Do not cache module downloads (GOMODCACHE is global under /tmp per job).
@@ -71,18 +99,15 @@ variables:
   rules:
     - when: always
   before_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
   after_script:
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # Go jobs: remove /tmp Go trees after the job (global GOPATH/GOMODCACHE/GOCACHE point there).
 .go-cache-clean:
   after_script:
     - rm -rf "/tmp/gopath-${CI_JOB_ID}" "/tmp/gocache-${CI_JOB_ID}" 2>/dev/null || true
-    - chmod -R u+w "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-    - rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+    - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # === LINT ===
 
@@ -187,7 +212,7 @@ typescript:lint:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run lint && pnpm run typecheck
 
@@ -243,7 +268,7 @@ typescript:test:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run test --coverage
   # Cobertura report upload runs even when the job fails on some runners; omit reports.* to avoid hard errors.
@@ -308,7 +333,7 @@ typescript:build:
     - mkdir -p "${CI_PROJECT_DIR}/.pnpm-tool"
     - npm install pnpm@10.33.0 --prefix "${CI_PROJECT_DIR}/.pnpm-tool" --omit=dev --no-audit --no-fund
     - export PATH="${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript && pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
   artifacts:
@@ -396,15 +421,15 @@ typescript:release:
     - mkdir -p "${NPM_GLOBAL}"
     - npm install npm@11.6.2 --prefix "${NPM_GLOBAL}" --no-audit --no-fund
     - export PATH="${NPM_GLOBAL}/node_modules/.bin:${CI_PROJECT_DIR}/.pnpm-tool/node_modules/.bin:${PATH}"
-    - cd packages/typescript
-    - pnpm install --frozen-lockfile
+    - cd "${CI_PROJECT_DIR}" && pnpm install --frozen-lockfile
   script:
     - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm run build
     - |
       if [ -n "${NPM_TOKEN:-}" ]; then
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
       fi
-    - cd "${CI_PROJECT_DIR}/packages/typescript" && pnpm publish --no-git-checks --access public
+    # Trusted publishing: npm 11.5.1+ exchanges GitLab NPM_ID_TOKEN (pnpm publish does not).
+    - cd "${CI_PROJECT_DIR}/packages/typescript" && npm publish --access public
   environment:
     name: npm
     url: https://www.npmjs.com/package/@sonicwall/sdk

@@ -5,6 +5,12 @@
 
 set -e
 ROOT="${CI_PROJECT_DIR:-.}"
+if [ -f "${ROOT}/scripts/ci-clean-go-workspace.sh" ]; then
+	sh "${ROOT}/scripts/ci-clean-go-workspace.sh"
+elif [ -d "${ROOT}/.go" ]; then
+	chmod -R u+rwx "${ROOT}/.go" 2>/dev/null || true
+	rm -rf "${ROOT}/.go" 2>/dev/null || true
+fi
 # Match packages/go/go.mod; patch level is the bootstrap tarball from go.dev
 GO_BOOTSTRAP_VERSION="${GO_BOOTSTRAP_VERSION:-1.25.9}"
 INSTALL_DIR="${ROOT}/.go-toolchain"
