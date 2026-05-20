@@ -4,7 +4,11 @@
   "version": "0.0.0",
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "msw"]
+    "onlyBuiltDependencies": ["esbuild", "msw"],
+    "overrides": {
+      "brace-expansion": ">=5.0.6",
+      "postcss": ">=8.5.10"
+    }
   },
   "scripts": {
     "build": "turbo run build",
@@ -17,6 +21,6 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
-    "turbo": "^2.3.3"
+    "turbo": "^2.9.14"
   }
 }
