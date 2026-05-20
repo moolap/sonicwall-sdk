@@ -229,11 +229,11 @@ python:lint:
   <<: *python-cache
   before_script:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
-    - cd packages/python && uv sync --all-extras --quiet
+    - cd packages/python && uv sync --extra dev --quiet
   script:
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff check src/ tests/
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff format --check src/ tests/
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run mypy src/ --no-error-summary
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff format --check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev mypy src/ --no-error-summary
 
 typescript:lint:
   extends: .integrity
@@ -286,9 +286,9 @@ python:test:
   <<: *python-cache
   before_script:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
-    - cd packages/python && uv sync --all-extras --quiet
+    - cd packages/python && uv sync --extra dev --quiet
   script:
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
   # Cobertura report upload can still run on failed jobs on some runners; use log regex only (like typescript:test).
   coverage: '/TOTAL.*\s(\d+\%)/'
 
