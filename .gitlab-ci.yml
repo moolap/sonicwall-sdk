@@ -389,14 +389,18 @@ security:osv-scan:
       export PATH="${OSV_BIN}:${PATH}"
   script:
     - export PATH="${CI_PROJECT_DIR}/.osv-scanner-bin:${PATH}"
-    # Shell runners can reuse stale node_modules from prior jobs; scan lockfiles only.
+    # Shell runners reuse workspaces — force checkout to this commit before scanning.
     - |
-      rm -rf "${CI_PROJECT_DIR}/node_modules" \
-        "${CI_PROJECT_DIR}/packages/typescript/node_modules" 2>/dev/null || true
+      set -eu
+      cd "${CI_PROJECT_DIR}"
+      git reset --hard "${CI_COMMIT_SHA}"
+      git clean -ffdx
+      rm -rf node_modules packages/typescript/node_modules 2>/dev/null || true
+      echo "Scanning lockfiles at commit ${CI_COMMIT_SHA}"
       osv-scanner scan \
-        --lockfile="${CI_PROJECT_DIR}/packages/python/uv.lock" \
-        --lockfile="${CI_PROJECT_DIR}/pnpm-lock.yaml" \
-        --lockfile="${CI_PROJECT_DIR}/packages/go/go.mod"
+        --lockfile=packages/python/uv.lock \
+        --lockfile=pnpm-lock.yaml \
+        --lockfile=packages/go/go.mod
 
 # === RELEASE (git tag vX.Y.Z only — same cadence as Srasta platform tags) ===
 
@@ -513,4 +517,5 @@ mirror:github:
       fi
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "dev"
     - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
