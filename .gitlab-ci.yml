@@ -364,6 +364,8 @@ security:osv-scan:
   stage: security
   dependencies: []
   image: alpine:3.20
+  variables:
+    GIT_DEPTH: 0
   before_script:
     # Shell executors ignore `image:` (no apk). Docker/Kubernetes runners use Alpine.
     - |
