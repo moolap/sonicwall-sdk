@@ -28,5 +28,6 @@ Python is the **reference implementation**. TypeScript and Go follow after Pytho
 ## OSS / release
 
 - [ ] Tag aligned release (`VERSION` + PyPI/npm + `go/v*` tag)
-- [ ] Public repo mirror and package metadata URL alignment
+- [x] Public repo mirror to GitHub (`mirror:github` CI job — set `GITHUB_MIRROR_TOKEN`)
+- [ ] Package metadata URL alignment with `github.com/moolap/sonicwall-sdk`
 - [ ] Git history secret scan before broad announcement

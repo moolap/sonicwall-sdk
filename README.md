@@ -246,6 +246,11 @@ SONICWALL_INTEGRATION_WRITE=1 uv run pytest tests/integration -m integration_wri
 - Interface and DHCP endpoints vary by firmware and may be unavailable on some
   validated devices. See `docs/current-status.md` and `docs/sonicwall-quirks.md`.
 
+## Repository layout
+
+- **GitLab** (`gandiva-tech/sonicwall-sdk`): primary development (`dev` → `main`), CI, and releases.
+- **GitHub** ([moolap/sonicwall-sdk](https://github.com/moolap/sonicwall-sdk)): public mirror of `main` and release tags. See [docs/mirroring.md](docs/mirroring.md).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). DCO sign-off required on all commits.
