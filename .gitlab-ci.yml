@@ -406,13 +406,17 @@ security:osv-scan:
       fi
       command -v git >/dev/null 2>&1 || { echo "ERROR: git required on runner" >&2; exit 1; }
       command -v curl >/dev/null 2>&1 || { echo "ERROR: curl required on runner" >&2; exit 1; }
-      # Shell runners reuse workspaces. GitLab get_sources already checks out CI_COMMIT_SHA;
-      # only re-fetch when HEAD is wrong (use CI_REPOSITORY_URL — includes CI_JOB_TOKEN).
+      # Shell runners reuse workspaces. Prefer get_sources checkout; never fetch with an
+      # unauthenticated https://gitlab.com remote (fails: "could not read Username").
       HEAD_SHA="$(git rev-parse HEAD 2>/dev/null || echo '')"
-      if [ "${HEAD_SHA}" != "${CI_COMMIT_SHA}" ]; then
-        git remote set-url origin "${CI_REPOSITORY_URL}"
-        git fetch --unshallow origin 2>/dev/null || true
-        git fetch origin "${CI_COMMIT_REF_NAME}" --update-head-ok
+      echo "HEAD=${HEAD_SHA} expected=${CI_COMMIT_SHA}"
+      NEED_CHECKOUT=0
+      if [ "${HEAD_SHA}" != "${CI_COMMIT_SHA}" ]; then NEED_CHECKOUT=1; fi
+      if ! git cat-file -e "${CI_COMMIT_SHA}^{commit}" 2>/dev/null; then NEED_CHECKOUT=1; fi
+      if [ "${NEED_CHECKOUT}" -eq 1 ]; then
+        AUTH_ORIGIN="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+        git remote set-url origin "${AUTH_ORIGIN}"
+        git fetch --unshallow origin 2>/dev/null || git fetch origin "${CI_COMMIT_REF_NAME}"
         git checkout -f "${CI_COMMIT_SHA}"
       fi
       git clean -ffdx
