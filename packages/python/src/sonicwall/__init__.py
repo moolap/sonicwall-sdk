@@ -13,6 +13,7 @@ from ._exceptions import (
     SessionExpiredError,
     SonicWallError,
     SonicWallHTTPError,
+    UnsupportedEndpointError,
 )
 from .models import (
     AccessRule,
@@ -52,6 +53,7 @@ __all__ = [
     "CommitError",
     "RollbackError",
     "ConnectionError",
+    "UnsupportedEndpointError",
     # Models
     "AddressObject",
     "AddressObjectType",

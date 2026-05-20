@@ -133,20 +133,26 @@ go tool cover -html=coverage.out
 The test suite uses mocked HTTP servers by default. To run integration tests against a real device:
 
 ```bash
-# Python
+# Python (read-only smoke + address-object write in pending transaction)
+cd packages/python
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  uv run pytest tests/ -m integration -v
+  uv run pytest tests/integration -m integration -v
 
-# TypeScript
+# Python destructive write CRUD (service objects, NAT, access rules) — opt-in
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  pnpm run test:integration
+  SONICWALL_INTEGRATION_WRITE=1 \
+  uv run pytest tests/integration -m integration_write -v
 
-# Go
+# CLI equivalents (verbose output)
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  go test -tags=integration -race ./...
+  uv run ../../smoke_test.py
+SONICWALL_INTEGRATION_WRITE=1 uv run ../../validate_write_crud.py
 ```
 
-Integration tests are skipped if `SONICWALL_HOST` is not set.
+Legacy env aliases `SW_HOST`, `SW_USER`, and `SW_PASS` are also supported.
+
+Unit test runs exclude `integration` and `integration_write` by default (`pyproject.toml` `addopts`).
+TypeScript/Go live-device tests are not implemented yet.
 
 ## MR Checklist
 
@@ -156,6 +162,11 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 - [ ] `spec/openapi.yaml` updated
 - [ ] `CHANGELOG.md` entry under `## Unreleased`
 - [ ] CI pipeline green
+
+## Community Standards
+
+By participating, you agree to follow the project
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Branch and release flow (Srasta-style)
 

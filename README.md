@@ -180,7 +180,7 @@ func main() {
 ## Error Handling
 
 ```python
-from sonicwall.exceptions import NotFoundError, ConflictError, AuthenticationError
+from sonicwall import NotFoundError, ConflictError, AuthenticationError, UnsupportedEndpointError
 
 try:
     obj = await client.address_objects.get("nonexistent")
@@ -200,10 +200,59 @@ except AuthenticationError:
 - [SonicOS quirks and gotchas](docs/sonicwall-quirks.md)
 - [Endpoint support matrix](docs/endpoint-support-matrix.md)
 - [Release readiness checklist](docs/release-readiness.md)
+- [Changelog](CHANGELOG.md)
+- [Roadmap](ROADMAP.md)
+
+## Live device validation (Python)
+
+Copy the example env file (`.env` is gitignored):
+
+```bash
+cp .env.example .env
+# edit .env with your lab appliance host, user, and password
+```
+
+Or export variables in your shell:
+
+```bash
+export SONICWALL_HOST="192.168.0.1"
+export SONICWALL_USER="admin"
+export SONICWALL_PASS="your-password"
+```
+
+From repo root:
+
+```bash
+./scripts/validate_local_device.sh
+# destructive write CRUD (service/NAT/access-rule tests):
+SONICWALL_INTEGRATION_WRITE=1 ./scripts/validate_local_device.sh --write
+```
+
+Or run pytest integration tests from `packages/python`:
+
+```bash
+cd packages/python
+SONICWALL_HOST=... SONICWALL_PASS=... uv run pytest tests/integration -m integration -v
+SONICWALL_INTEGRATION_WRITE=1 uv run pytest tests/integration -m integration_write -v
+```
+
+`SW_HOST` / `SW_PASS` are also accepted as aliases.
+
+## Known Limitations
+
+- Authentication parity is currently uneven across SDKs:
+  - Python supports SonicOS 7.x Digest `auth-int` + bearer token flow.
+  - TypeScript and Go currently target Basic + `smngsess` cookie variants.
+- Interface and DHCP endpoints vary by firmware and may be unavailable on some
+  validated devices. See `docs/current-status.md` and `docs/sonicwall-quirks.md`.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). DCO sign-off required on all commits.
+
+## Code of Conduct
+
+All participants are expected to follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 

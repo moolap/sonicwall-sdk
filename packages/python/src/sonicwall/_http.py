@@ -17,7 +17,9 @@ from ._exceptions import (
     RateLimitError,
     SessionExpiredError,
     SonicWallHTTPError,
+    UnsupportedEndpointError,
 )
+from ._firmware import firmware_limitation_message
 
 logger = logging.getLogger(__name__)
 
@@ -165,11 +167,7 @@ class HTTPClient:
                         message="Session expired",
                         response_body=body,
                     )
-                raise SonicWallHTTPError(
-                    status_code=response.status_code,
-                    message=msg,
-                    response_body=body,
-                )
+                self._raise_http_error(response.status_code, msg, body)
             return
 
         body = self._safe_json(response)
@@ -212,9 +210,25 @@ class HTTPClient:
                 message=msg,
                 response_body=body,
             )
+        self._raise_http_error(response.status_code, msg, body)
+
+    def _raise_http_error(
+        self,
+        status_code: int,
+        message: str,
+        body: dict[str, Any],
+    ) -> None:
+        reason = firmware_limitation_message(status_code, message)
+        if reason is not None:
+            raise UnsupportedEndpointError(
+                status_code,
+                message,
+                reason=reason,
+                response_body=body,
+            )
         raise SonicWallHTTPError(
-            status_code=response.status_code,
-            message=msg,
+            status_code=status_code,
+            message=message,
             response_body=body,
         )
 

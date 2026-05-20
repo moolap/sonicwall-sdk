@@ -63,6 +63,7 @@ packages/go/vendor/
 .env
 .env.*
 !.env.example
+live-validation.log
 *.key
 *.pem
 *.p12
