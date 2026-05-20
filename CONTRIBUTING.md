@@ -172,6 +172,13 @@ By participating, you agree to follow the project
 
 **Branches:** **`dev`** and **`main`** run the same **lint → test → build → security** jobs on every push. **Merging to `main` does not publish** to PyPI or npm.
 
+**Security scan locally (before pushing):** same script as CI job `security:osv-scan`:
+
+```sh
+./scripts/ci-osv-scan.sh              # host (fast)
+./scripts/ci-osv-scan.sh --docker   # Alpine 3.20 container (matches Docker gdlinux runners)
+```
+
 **Releases:** When `main` has the commit you want to ship, you **tag** it **`X.Y.Z`** or **`vX.Y.Z`** (Srasta often uses **`v`**; both work here). That starts a **tag pipeline** that:
 
 1. Runs the same checks again, plus **`validate:release-versions`** (root **`VERSION`** must match the tag, and Python / TypeScript / Go metadata must match **`VERSION`**).
