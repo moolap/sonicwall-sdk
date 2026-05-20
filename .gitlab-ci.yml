@@ -137,7 +137,7 @@ validate:runner-pool:
         echo "ERROR: job must not run on GitLab shared runners."
         exit 1
       fi
-      if ! echo ",${CI_RUNNER_TAGS}," | grep -q ',gdlinux,'; then
+      if ! echo "${CI_RUNNER_TAGS}" | grep -q 'gdlinux'; then
         echo "ERROR: runner must include gdlinux tag (private Gandiva pool)."
         exit 1
       fi
