@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from sonicwall._live_validation import LiveCredentials, integration_write_enabled, live_device_configured, resolve_live_credentials
+from sonicwall._live_validation import (
+    LiveCredentials,
+    integration_write_enabled,
+    live_device_configured,
+    resolve_live_credentials,
+)
 
 
 @pytest.fixture(scope="session")

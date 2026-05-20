@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from sonicwall._exceptions import SonicWallHTTPError, UnsupportedEndpointError
+from sonicwall._exceptions import UnsupportedEndpointError
 from sonicwall._firmware import firmware_limitation_message, is_firmware_unsupported_error
 from sonicwall._http import HTTPClient
 

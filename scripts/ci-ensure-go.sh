@@ -70,3 +70,15 @@ if [ ! -x "${INSTALL_DIR}/go/bin/go" ]; then
 fi
 
 export PATH="${INSTALL_DIR}/go/bin:${PATH}"
+if ! _go_version_ok; then
+	echo "ci-ensure-go: cached Go $(${INSTALL_DIR}/go/bin/go env GOVERSION 2>/dev/null || echo unknown) < ${GO_BOOTSTRAP_VERSION}, reinstalling..." >&2
+	rm -rf "${INSTALL_DIR}/go"
+	if command -v curl >/dev/null 2>&1; then
+		curl -sSL "${URL}" | tar -xzf - -C "${INSTALL_DIR}"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -qO- "${URL}" | tar -xzf - -C "${INSTALL_DIR}"
+	else
+		echo "ci-ensure-go: need curl or wget to download Go" >&2
+		return 1 2>/dev/null || exit 1
+	fi
+fi

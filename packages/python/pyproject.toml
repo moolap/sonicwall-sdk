@@ -80,7 +80,10 @@ addopts = ["-m", "not integration and not integration_write"]
 
 [tool.coverage.run]
 source = ["src/sonicwall"]
-omit = ["*/tests/*"]
+omit = [
+  "*/tests/*",
+  "*/sonicwall/_live_validation.py",
+]
 
 [tool.coverage.report]
 show_missing = true
