@@ -66,9 +66,10 @@ default:
   hooks:
     pre_get_sources_script:
       - |
-        [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ] || exit 0
-        chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-        rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        if [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ]; then
+          chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+          rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        fi
 
 # Other internal runner tags (see CONTRIBUTING): GitLab ANDs `tags`, so each line below is a
 # separate profile — swap with `default.tags` above if that pool is assigned to this project.
