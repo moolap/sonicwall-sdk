@@ -48,6 +48,7 @@ packages/python/contract-captures/
 packages/go/bin/
 packages/go/vendor/
 .golangci-bin/
+.osv-scanner-bin/
 .go-toolchain/
 # Leaked GOMODCACHE / toolchain under repo (CI + shell runners); never commit
 .go/
