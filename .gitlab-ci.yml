@@ -406,15 +406,15 @@ security:osv-scan:
       fi
       command -v git >/dev/null 2>&1 || { echo "ERROR: git required on runner" >&2; exit 1; }
       command -v curl >/dev/null 2>&1 || { echo "ERROR: curl required on runner" >&2; exit 1; }
-      # Shell runners reuse workspaces; ensure this commit exists before reset (GIT_DEPTH: 0 is not always enough).
-      git fetch --unshallow origin 2>/dev/null || true
-      git fetch origin "${CI_COMMIT_REF_NAME}" --update-head-ok 2>/dev/null || true
-      git fetch origin "${CI_COMMIT_SHA}" 2>/dev/null || git fetch origin "${CI_COMMIT_REF_NAME}"
-      if ! git cat-file -e "${CI_COMMIT_SHA}^{commit}" 2>/dev/null; then
-        echo "ERROR: commit ${CI_COMMIT_SHA} not available after fetch" >&2
-        exit 1
+      # Shell runners reuse workspaces. GitLab get_sources already checks out CI_COMMIT_SHA;
+      # only re-fetch when HEAD is wrong (use CI_REPOSITORY_URL — includes CI_JOB_TOKEN).
+      HEAD_SHA="$(git rev-parse HEAD 2>/dev/null || echo '')"
+      if [ "${HEAD_SHA}" != "${CI_COMMIT_SHA}" ]; then
+        git remote set-url origin "${CI_REPOSITORY_URL}"
+        git fetch --unshallow origin 2>/dev/null || true
+        git fetch origin "${CI_COMMIT_REF_NAME}" --update-head-ok
+        git checkout -f "${CI_COMMIT_SHA}"
       fi
-      git checkout -f "${CI_COMMIT_SHA}"
       git clean -ffdx
       ARCH="$(uname -m)"
       case "$ARCH" in
