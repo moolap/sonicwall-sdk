@@ -39,6 +39,8 @@ variables:
   GOPATH: "/tmp/gopath-${CI_JOB_ID}"
   GOMODCACHE: "/tmp/gopath-${CI_JOB_ID}/pkg/mod"
   GOCACHE: "/tmp/gocache-${CI_JOB_ID}"
+  # Match packages/go/go.mod; shell runners may ship an older Go — ci-ensure-go.sh bootstraps 1.25.10.
+  GO_BOOTSTRAP_VERSION: "1.25.10"
   GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:22-alpine"
@@ -387,7 +389,14 @@ security:osv-scan:
       export PATH="${OSV_BIN}:${PATH}"
   script:
     - export PATH="${CI_PROJECT_DIR}/.osv-scanner-bin:${PATH}"
-    - osv-scanner scan -r "${CI_PROJECT_DIR}"
+    # Shell runners can reuse stale node_modules from prior jobs; scan lockfiles only.
+    - |
+      rm -rf "${CI_PROJECT_DIR}/node_modules" \
+        "${CI_PROJECT_DIR}/packages/typescript/node_modules" 2>/dev/null || true
+      osv-scanner scan \
+        --lockfile="${CI_PROJECT_DIR}/packages/python/uv.lock" \
+        --lockfile="${CI_PROJECT_DIR}/pnpm-lock.yaml" \
+        --lockfile="${CI_PROJECT_DIR}/packages/go/go.mod"
 
 # === RELEASE (git tag vX.Y.Z only — same cadence as Srasta platform tags) ===
 
