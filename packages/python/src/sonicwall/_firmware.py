@@ -13,9 +13,7 @@ def firmware_limitation_message(status_code: int, message: str) -> str | None:
     msg = message.lower()
     if "api not found" in msg:
         return "api_not_found"
-    if "endpoint is incomplete" in msg or (
-        status_code == 400 and "incomplete" in msg
-    ):
+    if "endpoint is incomplete" in msg or (status_code == 400 and "incomplete" in msg):
         return "endpoint_incomplete"
     if "command" in msg and "not found" in msg:
         return "command_not_found"

@@ -55,18 +55,22 @@ def resolve_live_credentials(
 ) -> LiveCredentials:
     """Resolve credentials from args and environment.
 
-    Environment variables (first match wins per field):
-    - Host: ``SONICWALL_HOST``, ``SW_HOST``
-    - User: ``SONICWALL_USER``, ``SW_USER`` (default ``admin``)
-    - Password: ``SONICWALL_PASS``, ``SONICWALL_PASSWORD``, ``SW_PASS``
+      Environment variables (first match wins per field):
+      - Host: ``SONICWALL_HOST``, ``SW_HOST``
+      - User: ``SONICWALL_USER``, ``SW_USER`` (default ``admin``)
+      - Password: ``SONICWALL_PASS``, ``SONICWALL_PASSWORD``, ``SW_PASS``
 
-  A gitignored ``.env`` at the repository root (see ``.env.example``) is loaded
-  automatically when ``python-dotenv`` is installed.
+    A gitignored ``.env`` at the repository root (see ``.env.example``) is loaded
+    automatically when ``python-dotenv`` is installed.
     """
     load_local_env()
-    resolved_host = host if host is not None else _env_first("SONICWALL_HOST", "SW_HOST", default="192.168.0.1")
+    resolved_host = (
+        host if host is not None else _env_first("SONICWALL_HOST", "SW_HOST", default="192.168.0.1")
+    )
     resolved_user = (
-        username if username is not None else _env_first("SONICWALL_USER", "SW_USER", default="admin")
+        username
+        if username is not None
+        else _env_first("SONICWALL_USER", "SW_USER", default="admin")
     )
     resolved_password = (
         password

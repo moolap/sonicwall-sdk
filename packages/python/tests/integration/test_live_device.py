@@ -23,9 +23,7 @@ async def test_live_smoke(live_credentials) -> None:
 @pytest.mark.asyncio
 async def test_live_write_crud(live_credentials, live_write_enabled: bool) -> None:
     if not live_write_enabled:
-        pytest.skip(
-            "Destructive write CRUD skipped. Set SONICWALL_INTEGRATION_WRITE=1 to enable."
-        )
+        pytest.skip("Destructive write CRUD skipped. Set SONICWALL_INTEGRATION_WRITE=1 to enable.")
     exit_code = await run_write_crud(
         live_credentials.host,
         live_credentials.username,
