@@ -29,6 +29,24 @@ fi
 
 cd "${CI_PROJECT_DIR}"
 
+install_missing_tools() {
+  NEED=""
+  command -v git >/dev/null 2>&1 || NEED="${NEED} git"
+  command -v curl >/dev/null 2>&1 || NEED="${NEED} curl"
+  if [ -z "${NEED}" ]; then
+    return 0
+  fi
+
+  if command -v apk >/dev/null 2>&1; then
+    apk add --no-cache git curl ca-certificates
+  elif command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends git curl ca-certificates
+  fi
+}
+
+install_missing_tools
 command -v git >/dev/null 2>&1 || { echo "ERROR: git required" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo "ERROR: curl required" >&2; exit 1; }
 
