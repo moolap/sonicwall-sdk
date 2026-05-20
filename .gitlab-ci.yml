@@ -50,6 +50,13 @@ variables:
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
   GOLANGCI_LINT_VERSION: "v2.11.4"
 
+# All jobs must match these tags (GitLab ANDs them). Runners must be your project/group
+# runners — shared GitLab.com runners are disabled for this project in GitLab settings.
+.gandiva-linux-runner:
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+
 default:
   tags:
     - gdlinux
@@ -114,6 +121,27 @@ default:
     - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # === LINT ===
+
+# Fails fast if a job lands on an unexpected runner (shared pool or wrong tags).
+validate:runner-pool:
+  stage: lint
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+  script:
+    - |
+      set -eu
+      echo "Runner description: ${CI_RUNNER_DESCRIPTION:-unknown}"
+      echo "Runner tags: ${CI_RUNNER_TAGS:-unknown}"
+      if echo "${CI_RUNNER_DESCRIPTION:-}" | grep -qiE 'gitlab.*shared|shared.*runner'; then
+        echo "ERROR: job must not run on GitLab shared runners."
+        exit 1
+      fi
+      if ! echo ",${CI_RUNNER_TAGS}," | grep -q ',gdlinux,'; then
+        echo "ERROR: runner must include gdlinux tag (private Gandiva pool)."
+        exit 1
+      fi
+      echo "OK — using private gdlinux-tagged runner."
 
 # Blocks direct commits to the default branch — only merge commits (2+ parents) pass.
 # Does not run on tag pipelines. Note: GitLab "Squash merge" yields a single-parent commit and will FAIL this job.
@@ -363,6 +391,9 @@ go:build:
 # executor and ignore `image:`, so apk-based setup fails with "apk: command not found".
 security:osv-scan:
   stage: security
+  tags:
+    - gdlinux
+    - gdlinux-gpu
   dependencies: []
   variables:
     GIT_DEPTH: 0
@@ -375,7 +406,15 @@ security:osv-scan:
       fi
       command -v git >/dev/null 2>&1 || { echo "ERROR: git required on runner" >&2; exit 1; }
       command -v curl >/dev/null 2>&1 || { echo "ERROR: curl required on runner" >&2; exit 1; }
-      git reset --hard "${CI_COMMIT_SHA}"
+      # Shell runners reuse workspaces; ensure this commit exists before reset (GIT_DEPTH: 0 is not always enough).
+      git fetch --unshallow origin 2>/dev/null || true
+      git fetch origin "${CI_COMMIT_REF_NAME}" --update-head-ok 2>/dev/null || true
+      git fetch origin "${CI_COMMIT_SHA}" 2>/dev/null || git fetch origin "${CI_COMMIT_REF_NAME}"
+      if ! git cat-file -e "${CI_COMMIT_SHA}^{commit}" 2>/dev/null; then
+        echo "ERROR: commit ${CI_COMMIT_SHA} not available after fetch" >&2
+        exit 1
+      fi
+      git checkout -f "${CI_COMMIT_SHA}"
       git clean -ffdx
       ARCH="$(uname -m)"
       case "$ARCH" in
@@ -480,6 +519,9 @@ go:release:
 mirror:github:
   extends: .integrity
   stage: release
+  tags:
+    - gdlinux
+    - gdlinux-gpu
   image: alpine:3.20
   variables:
     GIT_DEPTH: 0

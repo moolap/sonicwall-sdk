@@ -206,7 +206,7 @@ To use one of those pools **instead**, replace **`default.tags`** with a **singl
 
 To let **several different runners** run the same pipeline without editing YAML, give them a **shared** tag (e.g. `sonicwall-sdk-ci`) in **`config.toml`** / GitLab runner settings and set **`default.tags`** to that tag only.
 
-To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
+To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project** (`shared_runners_enabled` is **off** for this repo). Jobs then run only on runners that match **`default.tags`** and are available to the project. See **[docs/gitlab-runners.md](docs/gitlab-runners.md)**. The **`validate:runner-pool`** job fails the pipeline if a job lands on a runner without the **`gdlinux`** tag or with a shared-runner description.
 
 Jobs use **`image: ...`** (Docker images). Your runners should use the **Docker** or **Kubernetes** executor unless you intentionally run on **shell** runners with those tools preinstalled on the host.
 
