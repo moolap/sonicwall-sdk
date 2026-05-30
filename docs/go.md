@@ -7,7 +7,7 @@
 ## Installation
 
 ```bash
-go get github.com/gandiva-tech/sonicwall-sdk/go
+go get github.com/moolap/sonicwall-sdk/go
 ```
 
 ## Authentication behavior
@@ -29,8 +29,8 @@ import (
     "fmt"
     "log"
 
-    sonicwall "github.com/gandiva-tech/sonicwall-sdk/go"
-    "github.com/gandiva-tech/sonicwall-sdk/go/models"
+    sonicwall "github.com/moolap/sonicwall-sdk/go"
+    "github.com/moolap/sonicwall-sdk/go/models"
 )
 
 func main() {
@@ -90,7 +90,7 @@ if err != nil {
 ## Error handling
 
 ```go
-import "github.com/gandiva-tech/sonicwall-sdk/go"
+import "github.com/moolap/sonicwall-sdk/go"
 
 obj, err := client.AddressObjects.Get(ctx, "doesnt-exist")
 if err != nil {

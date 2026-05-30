@@ -31,7 +31,10 @@ Python is the **reference implementation**. TypeScript and Go follow after Pytho
 
 ## OSS / release
 
-- [ ] Tag aligned release (`VERSION` + PyPI/npm + `go/v*` tag)
 - [x] Public repo mirror to GitHub (`mirror:github` CI job — set `GITHUB_MIRROR_TOKEN`)
-- [ ] Package metadata URL alignment with `github.com/moolap/sonicwall-sdk`
+- [x] Tag aligned release (`VERSION` + PyPI/npm + `go/v*` tag)
+- [x] Go module path aligned with GitHub mirror (`github.com/moolap/sonicwall-sdk/go`)
+- [x] Java GitLab Maven release job (`java:release`)
+- [ ] Maven Central publishing for Java
+- [ ] Package metadata URL alignment complete (PyPI/npm/Java registry docs)
 - [ ] Git history secret scan before broad announcement

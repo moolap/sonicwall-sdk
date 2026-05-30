@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/gandiva-tech/sonicwall-sdk/go/models"
+	"github.com/moolap/sonicwall-sdk/go/models"
 )
 
 const interfacesBase = "/interfaces"

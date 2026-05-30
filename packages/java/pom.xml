@@ -6,12 +6,12 @@
 
   <groupId>tech.gandiva</groupId>
   <artifactId>sonicwall-sdk</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <packaging>jar</packaging>
 
   <name>SonicWall SDK for Java</name>
   <description>Java client for the SonicOS REST API</description>
-  <url>https://gitlab.com/gandiva-tech/sonicwall-sdk</url>
+  <url>https://github.com/moolap/sonicwall-sdk</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

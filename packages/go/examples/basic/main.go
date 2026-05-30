@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	sonicwall "github.com/gandiva-tech/sonicwall-sdk/go"
-	"github.com/gandiva-tech/sonicwall-sdk/go/models"
+	sonicwall "github.com/moolap/sonicwall-sdk/go"
+	"github.com/moolap/sonicwall-sdk/go/models"
 )
 
 func main() {
