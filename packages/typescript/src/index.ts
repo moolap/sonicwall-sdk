@@ -32,10 +32,17 @@ export {
   CommitError,
   RollbackError,
   ConnectionError,
+  UnsupportedEndpointError,
   SONICOS_CODE_NOT_FOUND,
   SONICOS_CODE_ALREADY_EXISTS,
 } from "./errors.ts";
 export type { SonicOSResponseBody, SonicOSStatusInfo } from "./errors.ts";
+
+export {
+  firmwareLimitationReason,
+  isFirmwareUnsupportedError,
+} from "./firmware.ts";
+export type { FirmwareLimitationReason } from "./firmware.ts";
 
 // Models
 export {

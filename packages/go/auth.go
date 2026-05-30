@@ -1,6 +1,7 @@
 package sonicwall
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -12,20 +13,28 @@ import (
 	"sync"
 )
 
-// sessionCookieName is the SonicOS session cookie name.
 const sessionCookieName = "smngsess"
 
-// reSessionCookie matches the session cookie value in a Set-Cookie header.
 var reSessionCookie = regexp.MustCompile(`smngsess=([^;]+)`)
 
+type authMode int
+
+const (
+	authModeNone authMode = iota
+	authModeBearer
+	authModeCookie
+)
+
 type authManager struct {
-	baseURL   string
-	username  string
-	password  string
-	cookie    string
-	authed    bool
-	mu        sync.Mutex
-	httpClient *http.Client
+	baseURL     string
+	username    string
+	password    string
+	cookie      string
+	bearerToken string
+	mode        authMode
+	authed      bool
+	mu          sync.Mutex
+	httpClient  *http.Client
 }
 
 func newAuthManager(baseURL, username, password string, httpClient *http.Client) *authManager {
@@ -37,16 +46,16 @@ func newAuthManager(baseURL, username, password string, httpClient *http.Client)
 	}
 }
 
-// authenticate performs POST /auth and stores the session cookie.
-// Must be called with mu held.
 func (a *authManager) authenticate(ctx context.Context) error {
-	creds := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/auth", strings.NewReader("{}"))
+	authURL := a.baseURL + "/auth"
+	body := []byte("{}")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
 	if err != nil {
 		return &ConnectionError{Cause: err}
 	}
-	req.Header.Set("Authorization", "Basic "+creds)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
@@ -54,22 +63,105 @@ func (a *authManager) authenticate(ctx context.Context) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	respBody, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode == http.StatusUnauthorized {
-		body := &SonicOSErrorResponse{}
-		_ = json.NewDecoder(resp.Body).Decode(body)
+		challenge := pickAuthIntChallenge(resp.Header.Values("WWW-Authenticate"))
+		if challenge != nil {
+			return a.authenticateDigest(ctx, authURL, body, challenge)
+		}
+		return a.authenticateBasicCookie(ctx, authURL, body)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		parsed := &SonicOSErrorResponse{}
+		_ = json.Unmarshal(respBody, parsed)
+		return newHTTPError(resp.StatusCode, parsed)
+	}
+
+	return a.consumeAuthSuccess(resp, respBody)
+}
+
+func (a *authManager) authenticateDigest(ctx context.Context, authURL string, body []byte, challenge digestChallenge) error {
+	authHeader := buildDigestAuthHeader(http.MethodPost, authURL, body, a.username, a.password, challenge)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
+	if err != nil {
+		return &ConnectionError{Cause: err}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", authHeader)
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return &ConnectionError{Cause: err}
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		parsed := &SonicOSErrorResponse{}
+		_ = json.Unmarshal(respBody, parsed)
 		return &AuthenticationError{HTTPError{
-			StatusCode:   401,
-			ResponseBody: body,
+			StatusCode:     401,
+			ResponseBody:   parsed,
 			SonicWallError: SonicWallError{message: "authentication failed: invalid credentials"},
 		}}
 	}
 	if resp.StatusCode != http.StatusOK {
-		body := &SonicOSErrorResponse{}
-		_ = json.NewDecoder(resp.Body).Decode(body)
-		return newHTTPError(resp.StatusCode, body)
+		parsed := &SonicOSErrorResponse{}
+		_ = json.Unmarshal(respBody, parsed)
+		return newHTTPError(resp.StatusCode, parsed)
+	}
+	return a.consumeAuthSuccess(resp, respBody)
+}
+
+func (a *authManager) authenticateBasicCookie(ctx context.Context, authURL string, body []byte) error {
+	creds := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
+	if err != nil {
+		return &ConnectionError{Cause: err}
+	}
+	req.Header.Set("Authorization", "Basic "+creds)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return &ConnectionError{Cause: err}
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		parsed := &SonicOSErrorResponse{}
+		_ = json.Unmarshal(respBody, parsed)
+		return &AuthenticationError{HTTPError{
+			StatusCode:     401,
+			ResponseBody:   parsed,
+			SonicWallError: SonicWallError{message: "authentication failed: invalid credentials"},
+		}}
+	}
+	if resp.StatusCode != http.StatusOK {
+		parsed := &SonicOSErrorResponse{}
+		_ = json.Unmarshal(respBody, parsed)
+		return newHTTPError(resp.StatusCode, parsed)
+	}
+	return a.consumeAuthSuccess(resp, respBody)
+}
+
+func (a *authManager) consumeAuthSuccess(resp *http.Response, respBody []byte) error {
+	parsed := &SonicOSErrorResponse{}
+	_ = json.Unmarshal(respBody, parsed)
+
+	if token := extractBearerToken(parsed); token != "" {
+		a.bearerToken = token
+		a.cookie = ""
+		a.mode = authModeBearer
+		a.authed = true
+		return nil
 	}
 
-	// Extract smngsess from Set-Cookie
 	cookie := ""
 	for _, header := range resp.Header["Set-Cookie"] {
 		if m := reSessionCookie.FindStringSubmatch(header); m != nil {
@@ -77,7 +169,6 @@ func (a *authManager) authenticate(ctx context.Context) error {
 			break
 		}
 	}
-	// Also check the parsed cookies
 	if cookie == "" {
 		for _, c := range resp.Cookies() {
 			if c.Name == sessionCookieName {
@@ -90,62 +181,71 @@ func (a *authManager) authenticate(ctx context.Context) error {
 		return &AuthenticationError{HTTPError{
 			StatusCode: 200,
 			SonicWallError: SonicWallError{
-				message: "authentication succeeded but no smngsess cookie was returned",
+				message: "authentication succeeded but no bearer_token or smngsess cookie was returned",
 			},
 		}}
 	}
 
 	a.cookie = cookie
+	a.bearerToken = ""
+	a.mode = authModeCookie
 	a.authed = true
 	return nil
 }
 
-// ensureAuthenticated checks if authenticated, authenticating if needed.
 func (a *authManager) ensureAuthenticated(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.authed && a.cookie != "" {
+	if a.authed && (a.bearerToken != "" || a.cookie != "") {
 		return nil
 	}
 	return a.authenticate(ctx)
 }
 
-// reauthenticate forces re-authentication.
 func (a *authManager) reauthenticate(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.authed = false
 	a.cookie = ""
+	a.bearerToken = ""
+	a.mode = authModeNone
 	return a.authenticate(ctx)
 }
 
-// logout sends DELETE /auth.
 func (a *authManager) logout(ctx context.Context) error {
 	a.mu.Lock()
 	cookie := a.cookie
+	token := a.bearerToken
+	mode := a.mode
 	a.authed = false
 	a.cookie = ""
+	a.bearerToken = ""
+	a.mode = authModeNone
 	a.mu.Unlock()
 
-	if cookie == "" {
+	if mode == authModeNone {
 		return nil
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, a.baseURL+"/auth", nil)
 	if err != nil {
-		return nil // Best-effort
+		return nil
 	}
-	req.Header.Set("Cookie", fmt.Sprintf("%s=%s", sessionCookieName, cookie))
+	req.Header.Set("Accept", "application/json")
+	if mode == authModeBearer && token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if cookie != "" {
+		req.Header.Set("Cookie", fmt.Sprintf("%s=%s", sessionCookieName, cookie))
+	}
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return nil // Best-effort
+		return nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
-// cookieHeader returns the Cookie header value for the current session.
 func (a *authManager) cookieHeader() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -155,7 +255,15 @@ func (a *authManager) cookieHeader() string {
 	return fmt.Sprintf("%s=%s", sessionCookieName, a.cookie)
 }
 
-// checkResponseForSessionExpiry inspects a response body for SonicOS code 1085.
+func (a *authManager) authorizationHeader() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.bearerToken == "" {
+		return ""
+	}
+	return "Bearer " + a.bearerToken
+}
+
 func checkResponseForSessionExpiry(body *SonicOSErrorResponse) bool {
 	if body == nil {
 		return false

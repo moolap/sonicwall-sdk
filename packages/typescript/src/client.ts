@@ -62,16 +62,7 @@ export class SonicWallClient {
       // For SSL bypass in Node >=18 pass a custom dispatcher or use fetch with agent.
       // The option below is handled in node environments via the dispatcher.
       hooks: {
-        beforeRequest: [
-          (request) => {
-            if (this.auth.getSessionCookie()) {
-              request.headers.set(
-                "Cookie",
-                `smngsess=${this.auth.getSessionCookie()}`
-              );
-            }
-          },
-        ],
+        beforeRequest: [this.auth.beforeRequestHook],
         afterResponse: [
           async (_request, _options, response) => {
             // On 401, the retry logic in request() handles re-auth.

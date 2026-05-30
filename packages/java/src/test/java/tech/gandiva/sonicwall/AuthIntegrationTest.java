@@ -48,6 +48,44 @@ class AuthIntegrationTest {
   }
 
   @Test
+  void connectUsesDigestBearerWhenChallengePresent(WireMockRuntimeInfo wm) {
+    stubFor(
+        post(urlEqualTo(AUTH_PATH))
+            .inScenario("digest")
+            .whenScenarioStateIs("Started")
+            .willReturn(
+                aResponse()
+                    .withStatus(401)
+                    .withHeader(
+                        "WWW-Authenticate",
+                        "Digest realm=\"sonicwall\", nonce=\"abc123\", algorithm=SHA-256, qop=\"auth-int\"")
+                    .withBody(
+                        """
+                        {"status":{"success":false,"info":[{"code":401,"message":"Unauthorized"}]}}
+                        """))
+            .willSetStateTo("challenged"));
+
+    stubFor(
+        post(urlEqualTo(AUTH_PATH))
+            .inScenario("digest")
+            .whenScenarioStateIs("challenged")
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withBody(
+                        """
+                        {"status":{"success":true,"info":[{"bearer_token":"test-bearer"}]}}
+                        """)));
+
+    SonicWallClient client = new SonicWallClient(applianceBase(wm), "admin", "password");
+    assertDoesNotThrow(
+        () -> {
+          client.connect();
+          client.disconnect();
+        });
+  }
+
+  @Test
   void disconnectIsBestEffortAfterConnect(WireMockRuntimeInfo wm) {
     SonicWallClient client = SonicWallTestSupport.connectedClient(wm);
     assertDoesNotThrow(client::disconnect);

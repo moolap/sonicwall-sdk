@@ -38,8 +38,17 @@ public final class ExceptionMapper {
       case 403 -> new AuthorizationException(message, statusCode, sonicOsCode, body);
       case 404 -> new NotFoundException(message, statusCode, sonicOsCode, body);
       case 409 -> new ConflictException(message, statusCode, sonicOsCode, body);
-      default -> new SonicWallHttpException(message, statusCode, sonicOsCode, body);
+      default -> mapDefaultHttpError(message, statusCode, sonicOsCode, body);
     };
+  }
+
+  private static RuntimeException mapDefaultHttpError(
+      String message, int statusCode, int sonicOsCode, SonicOsResponse body) {
+    String reason = FirmwareLimitations.limitationReason(statusCode, message);
+    if (reason != null) {
+      return new UnsupportedEndpointException(message, statusCode, sonicOsCode, body, reason);
+    }
+    return new SonicWallHttpException(message, statusCode, sonicOsCode, body);
   }
 
   public static boolean isSessionExpired(SonicOsResponse body) {

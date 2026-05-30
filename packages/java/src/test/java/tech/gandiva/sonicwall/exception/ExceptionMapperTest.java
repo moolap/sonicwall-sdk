@@ -48,6 +48,21 @@ class ExceptionMapperTest {
     assertTrue(ExceptionMapper.isSessionExpired(body(ExceptionMapper.SONICOS_CODE_SESSION_EXPIRED, "x")));
   }
 
+  @Test
+  void mapsEndpointIncompleteToUnsupportedEndpoint() {
+    RuntimeException ex =
+        ExceptionMapper.mapHttpError(400, body(400, "API endpoint is incomplete"));
+    assertInstanceOf(UnsupportedEndpointException.class, ex);
+    assertTrue(((UnsupportedEndpointException) ex).reason().equals("endpoint_incomplete"));
+  }
+
+  @Test
+  void firmwareLimitationsDetectsUnsupportedEndpoint() {
+    UnsupportedEndpointException ex =
+        new UnsupportedEndpointException("API endpoint is incomplete", 400, 400, null, "endpoint_incomplete");
+    assertTrue(FirmwareLimitations.isFirmwareUnsupportedError(ex));
+  }
+
   private static SonicOsResponse body(int code, String message) {
     SonicOsResponse resp = new SonicOsResponse();
     resp.status = new SonicOsResponse.Status();

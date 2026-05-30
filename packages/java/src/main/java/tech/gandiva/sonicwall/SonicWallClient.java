@@ -24,7 +24,7 @@ import tech.gandiva.sonicwall.service.ServiceObjectsService;
  * Java client for the SonicOS REST API.
  *
  * <p>Authentication uses Basic auth + {@code smngsess} cookie (same as TypeScript/Go). For SonicOS
- * 7.x Digest + bearer token devices, use the Python SDK until Java auth parity lands.
+ * 7.x Digest + bearer token devices, cookie fallback remains for older firmware.
  */
 public final class SonicWallClient implements AutoCloseable {
   private final AuthManager auth;

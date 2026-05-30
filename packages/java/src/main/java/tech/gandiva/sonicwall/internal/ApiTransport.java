@@ -82,6 +82,7 @@ public final class ApiTransport {
     String url = baseUrl + "/" + path.replaceFirst("^/+", "");
     HttpRequest.Builder builder =
         HttpRequest.newBuilder().uri(URI.create(url)).header("Accept", "application/json");
+    auth.authorizationHeader().ifPresent(value -> builder.header("Authorization", value));
     auth.cookieHeader().ifPresent(cookie -> builder.header("Cookie", cookie));
 
     if (body != null) {

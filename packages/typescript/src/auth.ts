@@ -1,18 +1,22 @@
 /**
- * AuthManager — session-based auth for SonicOS REST API.
- *
- * Uses a promise-chain mutex to prevent concurrent re-authentication storms.
- * The SonicOS session cookie (smngsess) is stored and injected into requests
- * via ky's beforeRequest hooks.
+ * AuthManager — SonicOS session auth (Digest + bearer or Basic + cookie).
  */
 
 import type { BeforeRequestHook, KyInstance } from "ky";
 import { AuthenticationError, SessionExpiredError } from "./errors.ts";
+import {
+  buildDigestAuthHeader,
+  extractBearerToken,
+  pickAuthIntChallenge,
+} from "./digest.ts";
+
+type AuthMode = "bearer" | "cookie";
 
 export class AuthManager {
   private sessionCookie: string | null = null;
+  private bearerToken: string | null = null;
+  private authMode: AuthMode | null = null;
   private authenticated = false;
-  /** Mutex: a promise that resolves when the current re-auth is complete. */
   private authPromise: Promise<void> | null = null;
 
   constructor(
@@ -22,117 +26,63 @@ export class AuthManager {
   ) {}
 
   get isAuthenticated(): boolean {
-    return this.authenticated && this.sessionCookie !== null;
+    return this.authenticated && (this.bearerToken !== null || this.sessionCookie !== null);
   }
 
-  async authenticate(ky: KyInstance): Promise<void> {
-    const credentials = btoa(`${this.username}:${this.password}`);
-    const respWithHeaders = await ky.post("auth", {
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-      hooks: { beforeRequest: [] },
-    });
-
-    // Extract cookie from Set-Cookie header
-    const setCookie = respWithHeaders.headers.get("set-cookie") ?? "";
-    const match = /smngsess=([^;]+)/.exec(setCookie);
-    if (!match) {
-      throw new AuthenticationError(
-        200,
-        "Authentication succeeded but no smngsess cookie was returned"
-      );
-    }
-
-    this.sessionCookie = match[1] ?? null;
-    this.authenticated = true;
-  }
-
-  /** Authenticate once; concurrent callers share the same promise. */
-  async ensureAuthenticated(ky: KyInstance): Promise<void> {
+  async ensureAuthenticated(_ky: KyInstance): Promise<void> {
     if (this.isAuthenticated) return;
 
     if (this.authPromise) {
-      // Another caller is already authenticating — wait for it
       return this.authPromise;
     }
 
-    this.authPromise = this._doAuthenticate(ky).finally(() => {
+    this.authPromise = this.authenticate().finally(() => {
       this.authPromise = null;
     });
 
     return this.authPromise;
   }
 
-  private async _doAuthenticate(ky: KyInstance): Promise<void> {
-    const credentials = btoa(`${this.username}:${this.password}`);
-    const response = await ky.post("auth", {
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-      hooks: { beforeRequest: [] },
-    });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new AuthenticationError(
-        response.status,
-        "Authentication failed",
-        body as Record<string, unknown>
-      );
-    }
-
-    // Extract session cookie from Set-Cookie header
-    const setCookie = response.headers.get("set-cookie") ?? "";
-    const match = /smngsess=([^;]+)/.exec(setCookie);
-    if (!match?.[1]) {
-      throw new AuthenticationError(
-        200,
-        "Authentication succeeded but no smngsess cookie was returned"
-      );
-    }
-
-    this.sessionCookie = match[1];
-    this.authenticated = true;
-  }
-
-  async reauthenticate(ky: KyInstance): Promise<void> {
-    // Reset state and re-authenticate
+  async reauthenticate(_ky: KyInstance): Promise<void> {
     this.sessionCookie = null;
+    this.bearerToken = null;
+    this.authMode = null;
     this.authenticated = false;
-    // Wait for any in-flight auth to complete first
     if (this.authPromise) {
       await this.authPromise.catch(() => undefined);
     }
-    this.authPromise = this._doAuthenticate(ky).finally(() => {
+    this.authPromise = this.authenticate().finally(() => {
       this.authPromise = null;
     });
     return this.authPromise;
   }
 
-  async logout(ky: KyInstance): Promise<void> {
+  async logout(_ky: KyInstance): Promise<void> {
     if (!this.isAuthenticated) return;
+    const authUrl = `${this.baseUrl}auth`;
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.authMode === "bearer" && this.bearerToken) {
+      headers.Authorization = `Bearer ${this.bearerToken}`;
+    } else if (this.sessionCookie) {
+      headers.Cookie = `smngsess=${this.sessionCookie}`;
+    }
     try {
-      await ky.delete("auth", {
-        headers: { Cookie: `smngsess=${this.sessionCookie}` },
-        hooks: { beforeRequest: [] },
-      });
+      await fetch(authUrl, { method: "DELETE", headers });
     } catch {
-      // Best-effort logout
+      // best effort
     } finally {
       this.sessionCookie = null;
+      this.bearerToken = null;
+      this.authMode = null;
       this.authenticated = false;
     }
   }
 
-  /** ky beforeRequest hook that injects the session cookie. */
   get beforeRequestHook(): BeforeRequestHook {
     return (request) => {
-      if (this.sessionCookie) {
+      if (this.authMode === "bearer" && this.bearerToken) {
+        request.headers.set("Authorization", `Bearer ${this.bearerToken}`);
+      } else if (this.sessionCookie) {
         request.headers.set("Cookie", `smngsess=${this.sessionCookie}`);
       }
     };
@@ -142,11 +92,160 @@ export class AuthManager {
     return this.sessionCookie;
   }
 
+  getBearerToken(): string | null {
+    return this.bearerToken;
+  }
+
   isSessionExpiredResponse(body: Record<string, unknown>): boolean {
     const info = (body as { status?: { info?: Array<{ code?: number }> } }).status?.info;
     return (
       Array.isArray(info) &&
       info.some((i) => i.code === SessionExpiredError.SESSION_EXPIRED_CODE)
+    );
+  }
+
+  private async authenticate(): Promise<void> {
+    const authUrl = `${this.baseUrl}auth`;
+    const bodyText = "{}";
+    const baseHeaders = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+
+    const challengeResp = await fetch(authUrl, {
+      method: "POST",
+      headers: baseHeaders,
+      body: bodyText,
+    });
+
+    if (challengeResp.status === 401) {
+      const digestHeaders: string[] = [];
+      challengeResp.headers.forEach((value, key) => {
+        if (key.toLowerCase() === "www-authenticate") {
+          digestHeaders.push(value);
+        }
+      });
+
+      const challenge = pickAuthIntChallenge(digestHeaders);
+      if (challenge) {
+        await this.authenticateDigest(authUrl, bodyText, baseHeaders, challenge);
+        return;
+      }
+      await this.authenticateBasicCookie(authUrl, bodyText, baseHeaders);
+      return;
+    }
+
+    if (!challengeResp.ok) {
+      const responseBody = await challengeResp.json().catch(() => ({}));
+      throw new AuthenticationError(
+        challengeResp.status,
+        `Authentication failed with status ${challengeResp.status}`,
+        responseBody as Record<string, unknown>
+      );
+    }
+
+    await this.consumeAuthSuccess(challengeResp);
+  }
+
+  private async authenticateDigest(
+    authUrl: string,
+    bodyText: string,
+    baseHeaders: Record<string, string>,
+    challenge: ReturnType<typeof pickAuthIntChallenge>
+  ): Promise<void> {
+    if (!challenge) {
+      throw new AuthenticationError(401, "Missing Digest challenge");
+    }
+    const body = Buffer.from(bodyText, "utf8");
+    const authHeader = buildDigestAuthHeader(
+      "POST",
+      authUrl,
+      body,
+      this.username,
+      this.password,
+      challenge
+    );
+    const response = await fetch(authUrl, {
+      method: "POST",
+      headers: { ...baseHeaders, Authorization: authHeader },
+      body: bodyText,
+    });
+
+    if (response.status === 401) {
+      const responseBody = await response.json().catch(() => ({}));
+      throw new AuthenticationError(
+        401,
+        "Authentication failed: invalid username or password",
+        responseBody as Record<string, unknown>
+      );
+    }
+    if (!response.ok) {
+      const responseBody = await response.json().catch(() => ({}));
+      throw new AuthenticationError(
+        response.status,
+        `Authentication failed with status ${response.status}`,
+        responseBody as Record<string, unknown>
+      );
+    }
+    await this.consumeAuthSuccess(response);
+  }
+
+  private async authenticateBasicCookie(
+    authUrl: string,
+    bodyText: string,
+    baseHeaders: Record<string, string>
+  ): Promise<void> {
+    const credentials = Buffer.from(`${this.username}:${this.password}`).toString("base64");
+    const response = await fetch(authUrl, {
+      method: "POST",
+      headers: { ...baseHeaders, Authorization: `Basic ${credentials}` },
+      body: bodyText,
+    });
+
+    if (response.status === 401) {
+      const responseBody = await response.json().catch(() => ({}));
+      throw new AuthenticationError(
+        401,
+        "Authentication failed: invalid username or password",
+        responseBody as Record<string, unknown>
+      );
+    }
+    if (!response.ok) {
+      const responseBody = await response.json().catch(() => ({}));
+      throw new AuthenticationError(
+        response.status,
+        "Authentication failed",
+        responseBody as Record<string, unknown>
+      );
+    }
+    await this.consumeAuthSuccess(response);
+  }
+
+  private async consumeAuthSuccess(response: Response): Promise<void> {
+    const responseBody = await response.json().catch(() => ({}));
+    const token = extractBearerToken(responseBody);
+    if (token) {
+      this.bearerToken = token;
+      this.sessionCookie = null;
+      this.authMode = "bearer";
+      this.authenticated = true;
+      return;
+    }
+
+    const setCookie = response.headers.get("set-cookie") ?? "";
+    const match = /smngsess=([^;]+)/.exec(setCookie);
+    if (match?.[1]) {
+      this.sessionCookie = match[1];
+      this.bearerToken = null;
+      this.authMode = "cookie";
+      this.authenticated = true;
+      return;
+    }
+
+    throw new AuthenticationError(
+      200,
+      "Authentication succeeded but no bearer_token or smngsess cookie was returned",
+      responseBody as Record<string, unknown>
     );
   }
 }

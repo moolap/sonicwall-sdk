@@ -66,4 +66,4 @@ Typed exceptions mirror other SDKs:
 
 Java matches the **TypeScript/Go** CRUD surface for address objects, access rules, NAT policies, service objects, interfaces, and DHCP. See [language-parity.md](language-parity.md) for the full matrix.
 
-**Python** remains the reference for SonicOS 7.x Digest + bearer auth and `UnsupportedEndpointError` mapping.
+**Python** remains the reference for sync client ergonomics and live-validation scripts.

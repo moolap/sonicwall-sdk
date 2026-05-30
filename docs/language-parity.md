@@ -1,8 +1,8 @@
 # Language parity matrix
 
 Canonical API surface for **Python**, **TypeScript**, **Go**, and **Java**.  
-**Python** is the reference for SonicOS 7.x auth (Digest + bearer) and firmware fallbacks.  
-**TypeScript ≈ Go ≈ Java** target the same cookie-session CRUD surface below.
+**Python** is the reference for firmware fallbacks and `UnsupportedEndpointError`.  
+**TypeScript ≈ Go ≈ Java** share the same CRUD surface and SonicOS 7.x auth (Digest + bearer with Basic/cookie fallback).
 
 Legend: **Y** supported · **—** not applicable · **Py\*** Python-only today · **TS\*** TypeScript-only today
 
@@ -22,10 +22,10 @@ Legend: **Y** supported · **—** not applicable · **Py\*** Python-only today 
 
 | Capability | Python | TypeScript | Go | Java |
 |------------|--------|------------|-----|------|
-| SonicOS 7.x Digest + bearer | **Py\*** | — | — | — |
-| Basic + `smngsess` cookie | fallback | Y | Y | Y |
+| SonicOS 7.x Digest + bearer | Y | Y | Y | Y |
+| Basic + `smngsess` cookie | fallback | fallback | fallback | fallback |
 | Session re-auth on expiry | Y | Y | Y | Y |
-| `UnsupportedEndpointError` | **Py\*** | — | — | — |
+| `UnsupportedEndpointError` | Y | Y | Y | Y |
 
 ## Resources
 
@@ -69,10 +69,8 @@ Legend: **Y** supported · **—** not applicable · **Py\*** Python-only today 
 
 ## Intentional differences (for now)
 
-1. **Python auth** — only Python implements Digest `auth-int` + bearer for SonicOS 7.x lab devices.
-2. **Nested `pending()`** — TypeScript tracks depth; others commit/rollback on outermost transaction only.
-3. **`UnsupportedEndpointError`** — Python maps firmware “endpoint incomplete” messages; other SDKs surface generic HTTP errors until ported.
-4. **Sync Python client** — mirrors async resources; use async client for `pending()` context manager.
+1. **Nested `pending()`** — TypeScript tracks depth; others commit/rollback on outermost transaction only.
+2. **Sync Python client** — mirrors async resources; use async client for `pending()` context manager.
 
 ## Verification
 

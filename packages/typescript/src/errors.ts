@@ -5,6 +5,8 @@
  * statusCode, message, and the raw response body.
  */
 
+import { firmwareLimitationReason } from "./firmwareReason.ts";
+
 export interface SonicOSStatusInfo {
   level?: string;
   code?: number;
@@ -146,6 +148,23 @@ export class ConnectionError extends SonicWallError {
   }
 }
 
+/** Raised when SonicOS reports an endpoint missing or unusable on this firmware. */
+export class UnsupportedEndpointError extends SonicWallHTTPError {
+  readonly reason: string;
+
+  constructor(
+    statusCode: number,
+    message: string,
+    reason: string,
+    responseBody: SonicOSResponseBody = {}
+  ) {
+    super(statusCode, message, responseBody);
+    this.name = "UnsupportedEndpointError";
+    this.reason = reason;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 // SonicOS internal codes
 export const SONICOS_CODE_NOT_FOUND = 1030;
 export const SONICOS_CODE_ALREADY_EXISTS = 1055;
@@ -188,5 +207,17 @@ export function raiseForSonicOSBody(
     throw new ConflictError(message, body);
   }
 
-  throw new SonicWallHTTPError(statusCode, message, body);
+  throw mapHttpError(statusCode, message, body);
+}
+
+function mapHttpError(
+  statusCode: number,
+  message: string,
+  body: SonicOSResponseBody
+): SonicWallHTTPError {
+  const reason = firmwareLimitationReason(statusCode, message);
+  if (reason !== null) {
+    return new UnsupportedEndpointError(statusCode, message, reason, body);
+  }
+  return new SonicWallHTTPError(statusCode, message, body);
 }

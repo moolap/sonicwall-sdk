@@ -21,13 +21,12 @@ Multi-language SDK for the SonicOS REST API. Manage address objects, access rule
 
 | SDK | Current auth implementation | Firmware notes |
 |---|---|---|
-| Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Targets SonicOS 7.x behavior where auth returns `bearer_token` |
-| TypeScript | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
-| Go | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
-| Java | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
+| Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Auto-detects; Basic+cookie fallback |
+| TypeScript | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
+| Go | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
+| Java | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
 
-If your target device requires Digest `auth-int` + bearer token, use Python now
-or plan parity updates for TypeScript/Go before production rollout.
+All four SDKs raise `UnsupportedEndpointError` (or language equivalent) when SonicOS reports firmware/API limitations such as `API endpoint is incomplete`.
 
 ## Installation
 
@@ -259,12 +258,11 @@ SONICWALL_INTEGRATION_WRITE=1 uv run pytest tests/integration -m integration_wri
 
 ## Known Limitations
 
-- Authentication parity is currently uneven across SDKs:
-  - Python supports SonicOS 7.x Digest `auth-int` + bearer token flow.
-  - TypeScript and Go currently target Basic + `smngsess` cookie variants.
-  - Java currently targets Basic + `smngsess` cookie variants.
 - Interface and DHCP endpoints vary by firmware and may be unavailable on some
   validated devices. See `docs/current-status.md` and `docs/sonicwall-quirks.md`.
+- Full write CRUD for access rules, NAT policies, and service objects is not
+  available on all validated firmware profiles (see live validation in
+  `docs/current-status.md`).
 
 ## Repository layout
 
