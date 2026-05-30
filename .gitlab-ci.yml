@@ -88,7 +88,6 @@ default:
     paths:
       - .uv-cache/
       - .uv-install/
-      - packages/python/.venv/
 
 .node-cache: &node-cache
   cache:
@@ -236,7 +235,7 @@ python:lint:
   script:
     - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff check src/ tests/
     - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff format --check src/ tests/
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev mypy src/ --no-error-summary
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev python -m mypy src/ --no-error-summary
 
 typescript:lint:
   extends: .integrity
