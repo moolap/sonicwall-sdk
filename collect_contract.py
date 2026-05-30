@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 
 from sonicwall import SonicWallClient
+from sonicwall._live_validation import resolve_live_credentials
 
 
 @dataclass
@@ -239,16 +240,23 @@ async def run(host: str, username: str, password: str, output_dir: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect SonicOS API contracts")
-    parser.add_argument("--host", default=os.getenv("SW_HOST", "192.168.0.1"))
-    parser.add_argument("--user", default=os.getenv("SW_USER", "admin"))
-    parser.add_argument("--password", default=os.getenv("SW_PASS", ""))
+    parser.add_argument("--host", default=None)
+    parser.add_argument("--user", default=None)
+    parser.add_argument("--password", default=None)
     parser.add_argument("--output-dir", default="contract-captures")
     args = parser.parse_args()
 
-    if not args.password:
-        raise SystemExit("Error: provide --password or set SW_PASS env var")
+    try:
+        creds = resolve_live_credentials(
+            host=args.host,
+            username=args.user,
+            password=args.password,
+            require_password=True,
+        )
+    except ValueError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
 
-    raise SystemExit(asyncio.run(run(args.host, args.user, args.password, args.output_dir)))
+    raise SystemExit(asyncio.run(run(creds.host, creds.username, creds.password, args.output_dir)))
 
 
 if __name__ == "__main__":

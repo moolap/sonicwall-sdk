@@ -1,0 +1,14 @@
+# OSV scanner policy for sonicwall-sdk.
+# See scripts/ci-osv-scan.sh and GitLab job security:osv-scan.
+
+[[IgnoredVulns]]
+id = "GHSA-355h-qmc2-wpwf"
+reason = "WireMock 3.x test dependency (Jetty 11.0.26); not shipped in the SDK jar."
+
+[[IgnoredVulns]]
+id = "GHSA-qh8g-58pp-2wxh"
+reason = "WireMock 3.x test dependency (Jetty 11.0.26); not shipped in the SDK jar."
+
+[[IgnoredVulns]]
+id = "GHSA-wjpw-4j6x-6rwh"
+reason = "WireMock 3.x test dependency (Jetty 11.0.26); not shipped in the SDK jar."

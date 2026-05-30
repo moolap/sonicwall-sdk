@@ -7,9 +7,10 @@ import (
 
 // SonicOSStatusInfo is a single entry in the SonicOS status info array.
 type SonicOSStatusInfo struct {
-	Level   string `json:"level"`
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Level       string `json:"level"`
+	Code        int    `json:"code"`
+	Message     string `json:"message"`
+	BearerToken string `json:"bearer_token"`
 }
 
 // SonicOSStatus is the status block returned in every SonicOS API response.
@@ -155,6 +156,12 @@ func IsSessionExpired(err error) bool {
 	return errors.As(err, &target)
 }
 
+// IsUnsupportedEndpoint returns true if the error is an UnsupportedEndpointError.
+func IsUnsupportedEndpoint(err error) bool {
+	var target *UnsupportedEndpointError
+	return errors.As(err, &target)
+}
+
 // newHTTPError creates the appropriate typed error from a status code and SonicOS response body.
 func newHTTPError(statusCode int, body *SonicOSErrorResponse) error {
 	base := HTTPError{
@@ -193,6 +200,9 @@ func newHTTPError(statusCode int, body *SonicOSErrorResponse) error {
 
 	if base.message == "" {
 		base.message = fmt.Sprintf("unexpected status %d", statusCode)
+	}
+	if reason := firmwareLimitationReason(statusCode, base.message); reason != nil {
+		return &UnsupportedEndpointError{HTTPError: base, Reason: *reason}
 	}
 	return &base
 }

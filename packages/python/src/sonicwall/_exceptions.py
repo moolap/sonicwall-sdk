@@ -95,3 +95,21 @@ class SessionExpiredError(AuthenticationError):
 
     # SonicOS internal code for session expiry
     SESSION_EXPIRED_CODE = 1085
+
+
+class UnsupportedEndpointError(SonicWallHTTPError):
+    """Raised when SonicOS reports an endpoint is missing or not usable on this firmware.
+
+    Examples: ``API not found``, ``endpoint is incomplete``, ``Non config mode``.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        message: str,
+        *,
+        reason: str,
+        response_body: dict[str, Any] | None = None,
+    ) -> None:
+        self.reason = reason
+        super().__init__(status_code, message, response_body)

@@ -133,20 +133,26 @@ go tool cover -html=coverage.out
 The test suite uses mocked HTTP servers by default. To run integration tests against a real device:
 
 ```bash
-# Python
+# Python (read-only smoke + address-object write in pending transaction)
+cd packages/python
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  uv run pytest tests/ -m integration -v
+  uv run pytest tests/integration -m integration -v
 
-# TypeScript
+# Python destructive write CRUD (service objects, NAT, access rules) — opt-in
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  pnpm run test:integration
+  SONICWALL_INTEGRATION_WRITE=1 \
+  uv run pytest tests/integration -m integration_write -v
 
-# Go
+# CLI equivalents (verbose output)
 SONICWALL_HOST=192.168.1.1 SONICWALL_USER=admin SONICWALL_PASS=secret \
-  go test -tags=integration -race ./...
+  uv run ../../smoke_test.py
+SONICWALL_INTEGRATION_WRITE=1 uv run ../../validate_write_crud.py
 ```
 
-Integration tests are skipped if `SONICWALL_HOST` is not set.
+Legacy env aliases `SW_HOST`, `SW_USER`, and `SW_PASS` are also supported.
+
+Unit test runs exclude `integration` and `integration_write` by default (`pyproject.toml` `addopts`).
+TypeScript/Go live-device tests are not implemented yet.
 
 ## MR Checklist
 
@@ -157,9 +163,21 @@ Integration tests are skipped if `SONICWALL_HOST` is not set.
 - [ ] `CHANGELOG.md` entry under `## Unreleased`
 - [ ] CI pipeline green
 
+## Community Standards
+
+By participating, you agree to follow the project
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Branch and release flow (Srasta-style)
 
 **Branches:** **`dev`** and **`main`** run the same **lint → test → build → security** jobs on every push. **Merging to `main` does not publish** to PyPI or npm.
+
+**Security scan locally (before pushing):** same script as CI job `security:osv-scan`:
+
+```sh
+./scripts/ci-osv-scan.sh              # host (fast)
+./scripts/ci-osv-scan.sh --docker   # Alpine 3.20 container (matches Docker gdlinux runners)
+```
 
 **Releases:** When `main` has the commit you want to ship, you **tag** it **`X.Y.Z`** or **`vX.Y.Z`** (Srasta often uses **`v`**; both work here). That starts a **tag pipeline** that:
 
@@ -195,7 +213,7 @@ To use one of those pools **instead**, replace **`default.tags`** with a **singl
 
 To let **several different runners** run the same pipeline without editing YAML, give them a **shared** tag (e.g. `sonicwall-sdk-ci`) in **`config.toml`** / GitLab runner settings and set **`default.tags`** to that tag only.
 
-To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project**. Jobs then run only on runners that match **`default.tags`** and are available to the project.
+To avoid **GitLab.com shared runners** for this project: **Settings → CI/CD → Runners** → disable **Enable shared runners for this project** (`shared_runners_enabled` is **off** for this repo). Jobs then run only on runners that match **`default.tags`** and are available to the project. See **[docs/gitlab-runners.md](docs/gitlab-runners.md)**. The **`validate:runner-pool`** job fails the pipeline if a job lands on a runner without the **`gdlinux`** tag or with a shared-runner description.
 
 Jobs use **`image: ...`** (Docker images). Your runners should use the **Docker** or **Kubernetes** executor unless you intentionally run on **shell** runners with those tools preinstalled on the host.
 

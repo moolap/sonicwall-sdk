@@ -12,12 +12,12 @@ go get github.com/gandiva-tech/sonicwall-sdk/go
 
 ## Authentication behavior
 
-The current Go SDK implementation authenticates with `Authorization: Basic ...`
-to `POST /auth`, then sends `Cookie: smngsess=...` on authenticated requests.
+The Go SDK auto-detects SonicOS auth mode on `POST /auth`:
 
-On some SonicOS 7.x devices, auth may require Digest `auth-int` and issue a
-bearer token instead. If you encounter that behavior, treat this as a known
-firmware-compatibility gap in the current Go client.
+1. **Digest `auth-int` + bearer token** — SonicOS 7.x (when the device challenges with `auth-int`)
+2. **Basic + `smngsess` cookie** — fallback for older firmware
+
+Use `IsFirmwareUnsupportedError` to distinguish firmware/API limitations from SDK bugs when handling errors.
 
 ## Basic usage
 

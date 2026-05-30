@@ -30,6 +30,8 @@ stages:
   - release
 
 variables:
+  # Public OSS mirror (push from GitLab main/tags). Set GITHUB_MIRROR_TOKEN in CI/CD variables.
+  GITHUB_REPO: "moolap/sonicwall-sdk"
   UV_SYSTEM_PYTHON: "false"
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   PNPM_CACHE_DIR: "${CI_PROJECT_DIR}/.pnpm-store"
@@ -37,14 +39,25 @@ variables:
   GOPATH: "/tmp/gopath-${CI_JOB_ID}"
   GOMODCACHE: "/tmp/gopath-${CI_JOB_ID}/pkg/mod"
   GOCACHE: "/tmp/gocache-${CI_JOB_ID}"
+  # Match packages/go/go.mod; shell runners may ship an older Go — ci-ensure-go.sh bootstraps 1.25.10.
+  GO_BOOTSTRAP_VERSION: "1.25.10"
   GOTOOLCHAIN: local
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:22-alpine"
   GO_IMAGE: "golang:1.25-alpine"
+  JAVA_IMAGE: "maven:3.9-eclipse-temurin-21"
+  MAVEN_VERSION: "3.9.9"
   # GitHub release (not GHCR): avoids Docker ENTRYPOINT + non-root job user not being able to run /root/osv-scanner.
   OSV_SCANNER_VERSION: "v2.3.5"
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
   GOLANGCI_LINT_VERSION: "v2.11.4"
+
+# All jobs must match these tags (GitLab ANDs them). Runners must be your project/group
+# runners — shared GitLab.com runners are disabled for this project in GitLab settings.
+.gandiva-linux-runner:
+  tags:
+    - gdlinux
+    - gdlinux-gpu
 
 default:
   tags:
@@ -55,9 +68,10 @@ default:
   hooks:
     pre_get_sources_script:
       - |
-        [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ] || exit 0
-        chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
-        rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        if [ -n "${CI_PROJECT_DIR:-}" ] && [ -d "${CI_PROJECT_DIR}/.go" ]; then
+          chmod -R u+rwx "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+          rm -rf "${CI_PROJECT_DIR}/.go" 2>/dev/null || true
+        fi
 
 # Other internal runner tags (see CONTRIBUTING): GitLab ANDs `tags`, so each line below is a
 # separate profile — swap with `default.tags` above if that pool is assigned to this project.
@@ -74,7 +88,6 @@ default:
     paths:
       - .uv-cache/
       - .uv-install/
-      - packages/python/.venv/
 
 .node-cache: &node-cache
   cache:
@@ -110,6 +123,27 @@ default:
     - sh "${CI_PROJECT_DIR}/scripts/ci-clean-go-workspace.sh"
 
 # === LINT ===
+
+# Fails fast if a job lands on an unexpected runner (shared pool or wrong tags).
+validate:runner-pool:
+  stage: lint
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+  script:
+    - |
+      set -eu
+      echo "Runner description: ${CI_RUNNER_DESCRIPTION:-unknown}"
+      echo "Runner tags: ${CI_RUNNER_TAGS:-unknown}"
+      if echo "${CI_RUNNER_DESCRIPTION:-}" | grep -qiE 'gitlab.*shared|shared.*runner'; then
+        echo "ERROR: job must not run on GitLab shared runners."
+        exit 1
+      fi
+      if ! echo "${CI_RUNNER_TAGS}" | grep -q 'gdlinux'; then
+        echo "ERROR: runner must include gdlinux tag (private Gandiva pool)."
+        exit 1
+      fi
+      echo "OK — using private gdlinux-tagged runner."
 
 # Blocks direct commits to the default branch — only merge commits (2+ parents) pass.
 # Does not run on tag pipelines. Note: GitLab "Squash merge" yields a single-parent commit and will FAIL this job.
@@ -180,8 +214,9 @@ validate:release-versions:
       PY="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' packages/python/pyproject.toml)"
       TS="$(sed -n 's/^  "version": "\([^"]*\)",$/\1/p' packages/typescript/package.json)"
       GO="$(sed -n 's/^const Version = "\([^"]*\)"$/\1/p' packages/go/version.go)"
-      if [ "$PY" != "$V" ] || [ "$TS" != "$V" ] || [ "$GO" != "$V" ]; then
-        echo "ERROR: version mismatch — VERSION=$V pyproject=$PY package.json=$TS version.go=$GO"
+      JAVA="$(sed -n 's|^  <version>\([^<]*\)</version>$|'\''\1'\''|p' packages/java/pom.xml | head -1)"
+      if [ "$PY" != "$V" ] || [ "$TS" != "$V" ] || [ "$GO" != "$V" ] || [ "$JAVA" != "$V" ]; then
+        echo "ERROR: version mismatch — VERSION=$V pyproject=$PY package.json=$TS version.go=$GO pom.xml=$JAVA"
         echo "Run: python3 scripts/sync_versions_from_file.py && git commit -am 'chore: sync versions'"
         exit 1
       fi
@@ -196,11 +231,11 @@ python:lint:
   <<: *python-cache
   before_script:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
-    - cd packages/python && uv sync --all-extras --quiet
+    - cd packages/python && uv sync --extra dev --quiet
   script:
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff check src/ tests/
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run ruff format --check src/ tests/
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run mypy src/ --no-error-summary
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev ruff format --check src/ tests/
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev python -m mypy src/ --no-error-summary
 
 typescript:lint:
   extends: .integrity
@@ -244,6 +279,15 @@ go:lint:
     - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
     - cd "${CI_PROJECT_DIR}/packages/go" && golangci-lint run ./...
 
+java:lint:
+  extends: .integrity
+  stage: lint
+  image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q validate compile
+
 # === TEST ===
 
 python:test:
@@ -253,9 +297,9 @@ python:test:
   <<: *python-cache
   before_script:
     - . "${CI_PROJECT_DIR}/scripts/ci-install-uv.sh"
-    - cd packages/python && uv sync --all-extras --quiet
+    - cd packages/python && uv sync --extra dev --quiet
   script:
-    - cd "${CI_PROJECT_DIR}/packages/python" && uv run pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
+    - cd "${CI_PROJECT_DIR}/packages/python" && uv run --extra dev pytest tests/ -v --cov=sonicwall --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=70
   # Cobertura report upload can still run on failed jobs on some runners; use log regex only (like typescript:test).
   coverage: '/TOTAL.*\s(\d+\%)/'
 
@@ -307,6 +351,15 @@ go:test:
       - packages/go/coverage.out
     expire_in: 1 week
 
+java:test:
+  extends: .integrity
+  stage: test
+  image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B test
+
 # === BUILD ===
 
 python:build:
@@ -353,29 +406,39 @@ go:build:
   script:
     - cd "${CI_PROJECT_DIR}/packages/go" && go build ./...
 
+java:build:
+  extends: .integrity
+  stage: build
+  image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q package -DskipTests
+  artifacts:
+    paths:
+      - packages/java/target/*.jar
+    expire_in: 1 week
+
 # === SECURITY (dependency / vuln scan — pipeline fails if OSV reports issues) ===
 
+# Self-contained job (no .integrity). `image: alpine` for Docker executors (gdlinux-gpu);
+# shell executors ignore `image:` and use host git/curl.
 security:osv-scan:
-  extends: .integrity
   stage: security
-  dependencies: []
   image: alpine:3.20
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+  dependencies: []
+  variables:
+    GIT_DEPTH: 0
   before_script:
-    - apk add --no-cache ca-certificates curl
     - |
-      set -e
-      ARCH="$(uname -m)"
-      case "$ARCH" in
-        x86_64) DL_SUFFIX="linux_amd64" ;;
-        aarch64 | arm64) DL_SUFFIX="linux_arm64" ;;
-        *) echo "osv-scanner: unsupported arch ${ARCH}" >&2; exit 1 ;;
-      esac
-      URL="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_${DL_SUFFIX}"
-      install -d /usr/local/bin
-      curl -fsSL -o /usr/local/bin/osv-scanner "$URL"
-      chmod +x /usr/local/bin/osv-scanner
+      if command -v apk >/dev/null 2>&1; then
+        apk add --no-cache git curl ca-certificates
+      fi
   script:
-    - osv-scanner scan -r "${CI_PROJECT_DIR}"
+    - sh "${CI_PROJECT_DIR}/scripts/ci-osv-scan.sh"
 
 # === RELEASE (git tag vX.Y.Z only — same cadence as Srasta platform tags) ===
 
@@ -452,4 +515,60 @@ go:release:
       echo "Go proxy expects a module tag at the same commit, e.g.:"
       echo "  git tag go/v${CI_COMMIT_TAG#v} ${CI_COMMIT_SHA} && git push origin go/v${CI_COMMIT_TAG#v}"
   rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+
+# === GITHUB MIRROR (public OSS copy of GitLab mainline) ===
+# Requires CI/CD variable GITHUB_MIRROR_TOKEN (GitHub PAT, contents: write).
+# Target: https://github.com/${GITHUB_REPO}
+# Skips silently when the token is unset so dev/main pipelines stay green.
+
+mirror:github:
+  extends: .integrity
+  stage: release
+  tags:
+    - gdlinux
+    - gdlinux-gpu
+  image: alpine:3.20
+  variables:
+    GIT_DEPTH: 0
+  when: on_success
+  before_script:
+    - |
+      if command -v git >/dev/null 2>&1; then
+        :
+      elif command -v apk >/dev/null 2>&1; then
+        apk add --no-cache git
+      elif command -v apt-get >/dev/null 2>&1; then
+        apt-get update
+        apt-get install -y --no-install-recommends git ca-certificates
+      else
+        echo "ERROR: git required for GitHub mirror job" >&2
+        exit 1
+      fi
+  script:
+    - |
+      set -eu
+      if [ -z "${GITHUB_MIRROR_TOKEN:-}" ]; then
+        echo "GITHUB_MIRROR_TOKEN not set — skipping GitHub mirror."
+        echo "Add a fine-grained PAT (contents: write) for https://github.com/${GITHUB_REPO}"
+        exit 0
+      fi
+      if ! git remote get-url github >/dev/null 2>&1; then
+        git remote add github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/${GITHUB_REPO}.git"
+      else
+        git remote set-url github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/${GITHUB_REPO}.git"
+      fi
+      echo "Mirroring ${CI_COMMIT_SHA} to github.com/${GITHUB_REPO} main"
+      git push github "${CI_COMMIT_SHA}:refs/heads/main"
+      if [ -n "${CI_COMMIT_TAG:-}" ]; then
+        echo "Mirroring tag ${CI_COMMIT_TAG}"
+        git push github "${CI_COMMIT_TAG}" || true
+        TAG_VER="${CI_COMMIT_TAG#v}"
+        git push github "go/v${TAG_VER}" 2>/dev/null || true
+      else
+        git push github --tags
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "dev"
     - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'

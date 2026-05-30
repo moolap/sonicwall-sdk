@@ -48,9 +48,15 @@ packages/python/contract-captures/
 packages/go/bin/
 packages/go/vendor/
 .golangci-bin/
+.osv-scanner-bin/
 .go-toolchain/
+.maven-tool/
+.java-toolchain/
 # Leaked GOMODCACHE / toolchain under repo (CI + shell runners); never commit
 .go/
+
+# Java
+packages/java/target/
 
 # IDE
 .idea/
@@ -63,6 +69,7 @@ packages/go/vendor/
 .env
 .env.*
 !.env.example
+live-validation.log
 *.key
 *.pem
 *.p12

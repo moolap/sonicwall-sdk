@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Align packages/python, packages/typescript, and packages/go with repository root VERSION."""
+"""Align packages/python, packages/typescript, packages/go, and packages/java with repository root VERSION."""
 from __future__ import annotations
 
 import re
@@ -41,6 +41,29 @@ def main() -> None:
         "package sonicwall\n\n"
         "// Version is the SDK release version (aligned with Python and npm; see VERSION + CONTRIBUTING.md).\n"
         f'const Version = "{ver}"\n',
+        encoding="utf-8",
+    )
+
+    pj_java = root / "packages/java/pom.xml"
+    jt_java = pj_java.read_text(encoding="utf-8")
+    pj_java.write_text(
+        re.sub(
+            r"(<artifactId>sonicwall-sdk</artifactId>\s*\n\s*<version>)[^<]+(</version>)",
+            rf"\g<1>{ver}\2",
+            jt_java,
+            count=1,
+        ),
+        encoding="utf-8",
+    )
+
+    vj = root / "packages/java/src/main/java/tech/gandiva/sonicwall/Version.java"
+    vj.write_text(
+        "package tech.gandiva.sonicwall;\n\n"
+        "/** SDK release version (aligned with Python, TypeScript, Go; see repository {@code VERSION}). */\n"
+        "public final class Version {\n"
+        f'  public static final String VERSION = "{ver}";\n\n'
+        "  private Version() {}\n"
+        "}\n",
         encoding="utf-8",
     )
     print(ver)

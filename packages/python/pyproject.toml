@@ -38,6 +38,7 @@ dev = [
   "respx>=0.21",
   "ruff>=0.6",
   "mypy>=1.10",
+  "python-dotenv>=1.0",
 ]
 
 [project.urls]
@@ -71,11 +72,18 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["integration: tests requiring a real SonicWall device"]
+markers = [
+  "integration: tests requiring a real SonicWall device",
+  "integration_write: destructive live-device write CRUD tests (opt-in)",
+]
+addopts = ["-m", "not integration and not integration_write"]
 
 [tool.coverage.run]
 source = ["src/sonicwall"]
-omit = ["*/tests/*"]
+omit = [
+  "*/tests/*",
+  "*/sonicwall/_live_validation.py",
+]
 
 [tool.coverage.report]
 show_missing = true

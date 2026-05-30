@@ -62,16 +62,7 @@ export class SonicWallClient {
       // For SSL bypass in Node >=18 pass a custom dispatcher or use fetch with agent.
       // The option below is handled in node environments via the dispatcher.
       hooks: {
-        beforeRequest: [
-          (request) => {
-            if (this.auth.getSessionCookie()) {
-              request.headers.set(
-                "Cookie",
-                `smngsess=${this.auth.getSessionCookie()}`
-              );
-            }
-          },
-        ],
+        beforeRequest: [this.auth.beforeRequestHook],
         afterResponse: [
           async (_request, _options, response) => {
             // On 401, the retry logic in request() handles re-auth.
@@ -85,11 +76,11 @@ export class SonicWallClient {
   // --- Lifecycle ---
 
   async connect(): Promise<void> {
-    await this.auth.ensureAuthenticated(this._ky);
+    await this.auth.ensureAuthenticated();
   }
 
   async disconnect(): Promise<void> {
-    await this.auth.logout(this._ky);
+    await this.auth.logout();
   }
 
   // --- Commit / Rollback ---
@@ -195,7 +186,7 @@ export class SonicWallClient {
     path: string,
     options: { json?: unknown; searchParams?: Record<string, string> } = {}
   ): Promise<T> {
-    await this.auth.ensureAuthenticated(this._ky);
+    await this.auth.ensureAuthenticated();
 
     const doRequest = async (): Promise<T> => {
       const kyOptions: Record<string, unknown> = {
@@ -228,7 +219,7 @@ export class SonicWallClient {
     } catch (err) {
       if (err instanceof SessionExpiredError || this._is401(err)) {
         // Re-authenticate once and retry
-        await this.auth.reauthenticate(this._ky);
+        await this.auth.reauthenticate();
         try {
           return await doRequest();
         } catch (retryErr) {

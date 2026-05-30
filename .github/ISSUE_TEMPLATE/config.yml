@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://gitlab.com/gandiva-tech/sonicwall-sdk/-/security/advisories
+    about: Please report security issues privately via the advisory flow in SECURITY.md.
+

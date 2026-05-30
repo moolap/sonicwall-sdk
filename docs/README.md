@@ -3,6 +3,7 @@
 - [Python getting started](python.md)
 - [TypeScript getting started](typescript.md)
 - [Go getting started](go.md)
+- [Java getting started](java.md)
 - [SonicOS API quirks and gotchas](sonicwall-quirks.md)
 - [Endpoint support matrix](endpoint-support-matrix.md)
 - [Current project status](current-status.md)

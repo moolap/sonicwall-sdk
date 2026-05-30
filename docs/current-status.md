@@ -1,46 +1,48 @@
 # Current Project Status
 
-This document captures what was completed in the recent SonicOS firmware
-compatibility pass and what remains for the next implementation cycle.
+Last live validation: **2026-05-19** against `192.168.0.1` (Python SDK, Digest + bearer).
 
-## Completed in this pass
+Commands run:
 
-- Implemented Python auth flow for SonicOS 7.x Digest `auth-int` handshake
-  and bearer-token usage.
-- Added host normalization so client accepts either host/IP or full URL input.
-- Added one-shot contract capture tool: `collect_contract.py`.
-- Hardened parsing against real firmware payload variants:
-  - address objects (`host`/`network` malformed or alternate shapes)
-  - NAT policy reference/object variants
-  - service object long built-in names
-  - address-object get-by-name list-envelope variants
-- Added write compatibility fallback for address object payload schema
-  (`address_object` vs `address_objects[]`).
-- Added config-mode negotiation attempts in pending transaction context
-  for firmware requiring explicit mode transition before writes.
-- Improved transaction robustness so rollback failures do not mask the original
-  write exception.
-- Expanded smoke test behavior for firmware-limited endpoints (skip unsupported
-  interfaces/DHCP/write mode constraints instead of hard fail where appropriate).
-- Added and updated tests for all compatibility fixes.
-- Added endpoint support documentation:
-  - `docs/endpoint-support-matrix.md`
-  - `docs/release-readiness.md`
-  - `docs/endpoint-support-status.json` + `generate_endpoint_support_matrix.py`
+```bash
+cd packages/python && uv run ../../smoke_test.py
+SONICWALL_INTEGRATION_WRITE=1 uv run ../../validate_write_crud.py
+```
 
-## Validated on target firmware/device
+## Live validation results (192.168.0.1)
 
-- Supported: auth, address object list/get/create/delete flow, access-rule list,
-  NAT list, service-object list, transaction commit path.
-- Supported with quirks: address object parsing (malformed built-ins skipped).
-- Unsupported on validated firmware: interfaces list endpoint, DHCP lease
-  endpoint variants.
+| Check | Result | Notes |
+|-------|--------|-------|
+| Auth (Digest + bearer) | **Pass** | Login OK |
+| Address objects list | **Pass** | 13 objects; 11 built-ins skipped (empty `host`/`network`) |
+| Address object write (create/delete + commit) | **Pass** | `sdk-smoke-test-DO-NOT-USE` |
+| Access rules list | **Pass** | 64 rules |
+| NAT policies list | **Pass** | 8 policies |
+| Service objects list | **Pass** | 205 objects |
+| Interfaces list | **Skip** | HTTP 400: API endpoint is incomplete |
+| DHCP leases list | **Skip** | HTTP 400: API endpoint is incomplete |
+| Service object write CRUD | **Skip** | Create may succeed; follow-up command/API not found |
+| NAT policy write CRUD | **Skip** | HTTP 404: API not found |
+| Access rule write CRUD | **Skip** | HTTP 404: API not found |
 
-## Identified next implementation tickets
+**Conclusion:** This firmware profile is **production-ready for read automation and address-object writes**. Full write CRUD for rules/NAT/services is **not available via REST** on this device — treat those SDK methods as best-effort until SonicOS exposes the endpoints or a different firmware/model is validated.
 
-- Live-validate write CRUD for access rules.
-- Live-validate write CRUD for NAT policies.
-- Live-validate write CRUD for service objects.
-- Build shared response normalization utilities across resources. (Done)
-- Auto-generate endpoint support matrix from contract captures/spec data. (Done for spec + status JSON; contract ingestion remains future enhancement)
-- Port critical Python compatibility fallbacks to TypeScript and Go SDKs. (In progress)
+## Completed in prior passes
+
+- SonicOS 7.x Digest `auth-int` + bearer token auth (all four SDKs)
+- Host normalization, contract capture (`collect_contract.py`)
+- Firmware payload parsing fallbacks (address objects, NAT refs, service objects)
+- Address-object schema-array write fallback
+- Config-mode negotiation in pending transactions
+- Transaction rollback robustness
+- Endpoint support matrix + release readiness docs
+- Multi-language CRUD parity (TS/Go/Java) for spec surface; Java + CI green on `dev`
+
+## Next implementation tickets
+
+1. ~~Live smoke on lab device~~ — done (see table above)
+2. ~~Live write CRUD validation~~ — done; document unsupported writes (this file)
+3. ~~Port Digest + bearer auth to TypeScript / Go / Java~~ — done
+4. ~~Port Python firmware fallbacks + `UnsupportedEndpointError` to other languages~~ — done (schema-array fallbacks were already present; typed errors added)
+5. Expand unit tests (Go suite, Java CRUD WireMock, access-rule/NAT/service Python tests)
+6. First aligned OSS release (PyPI / npm / Go tag / Maven)

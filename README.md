@@ -6,7 +6,7 @@
 [![GitLab CI](https://gitlab.com/gandiva-tech/sonicwall-sdk/badges/main/pipeline.svg)](https://gitlab.com/gandiva-tech/sonicwall-sdk/-/pipelines)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Multi-language SDK for the SonicOS REST API. Manage address objects, access rules, NAT policies, interfaces, service objects, and DHCP from Python, TypeScript, or Go — with proper session management, pending-config transactions, and typed errors.
+Multi-language SDK for the SonicOS REST API. Manage address objects, access rules, NAT policies, interfaces, service objects, and DHCP from Python, TypeScript, Go, or Java — with proper session management, pending-config transactions, and typed errors.
 
 ## Features
 
@@ -21,12 +21,12 @@ Multi-language SDK for the SonicOS REST API. Manage address objects, access rule
 
 | SDK | Current auth implementation | Firmware notes |
 |---|---|---|
-| Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Targets SonicOS 7.x behavior where auth returns `bearer_token` |
-| TypeScript | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
-| Go | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
+| Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Auto-detects; Basic+cookie fallback |
+| TypeScript | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
+| Go | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
+| Java | Auto-detect: Digest+bearer or Basic+cookie on `POST /auth` | Same behavior as Python |
 
-If your target device requires Digest `auth-int` + bearer token, use Python now
-or plan parity updates for TypeScript/Go before production rollout.
+All four SDKs raise `UnsupportedEndpointError` (or language equivalent) when SonicOS reports firmware/API limitations such as `API endpoint is incomplete`.
 
 ## Installation
 
@@ -50,6 +50,22 @@ npm install @sonicwall/sdk
 
 ```bash
 go get github.com/gandiva-tech/sonicwall-sdk/go
+```
+
+### Java
+
+```bash
+cd packages/java && mvn install
+```
+
+Maven dependency:
+
+```xml
+<dependency>
+  <groupId>tech.gandiva</groupId>
+  <artifactId>sonicwall-sdk</artifactId>
+  <version>0.1.0</version>
+</dependency>
 ```
 
 ## Quick Start
@@ -180,7 +196,7 @@ func main() {
 ## Error Handling
 
 ```python
-from sonicwall.exceptions import NotFoundError, ConflictError, AuthenticationError
+from sonicwall import NotFoundError, ConflictError, AuthenticationError, UnsupportedEndpointError
 
 try:
     obj = await client.address_objects.get("nonexistent")
@@ -197,13 +213,69 @@ except AuthenticationError:
 - [Python guide](docs/python.md)
 - [TypeScript guide](docs/typescript.md)
 - [Go guide](docs/go.md)
+- [Java guide](docs/java.md)
+- [Language parity matrix](docs/language-parity.md)
 - [SonicOS quirks and gotchas](docs/sonicwall-quirks.md)
 - [Endpoint support matrix](docs/endpoint-support-matrix.md)
 - [Release readiness checklist](docs/release-readiness.md)
+- [Changelog](CHANGELOG.md)
+- [Roadmap](ROADMAP.md)
+
+## Live device validation (Python)
+
+Copy the example env file (`.env` is gitignored):
+
+```bash
+cp .env.example .env
+# edit .env with your lab appliance host, user, and password
+```
+
+Or export variables in your shell:
+
+```bash
+export SONICWALL_HOST="192.168.0.1"
+export SONICWALL_USER="admin"
+export SONICWALL_PASS="your-password"
+```
+
+From repo root:
+
+```bash
+./scripts/validate_local_device.sh
+# destructive write CRUD (service/NAT/access-rule tests):
+SONICWALL_INTEGRATION_WRITE=1 ./scripts/validate_local_device.sh --write
+```
+
+Or run pytest integration tests from `packages/python`:
+
+```bash
+cd packages/python
+SONICWALL_HOST=... SONICWALL_PASS=... uv run pytest tests/integration -m integration -v
+SONICWALL_INTEGRATION_WRITE=1 uv run pytest tests/integration -m integration_write -v
+```
+
+`SW_HOST` / `SW_PASS` are also accepted as aliases.
+
+## Known Limitations
+
+- Interface and DHCP endpoints vary by firmware and may be unavailable on some
+  validated devices. See `docs/current-status.md` and `docs/sonicwall-quirks.md`.
+- Full write CRUD for access rules, NAT policies, and service objects is not
+  available on all validated firmware profiles (see live validation in
+  `docs/current-status.md`).
+
+## Repository layout
+
+- **GitLab** (`gandiva-tech/sonicwall-sdk`): primary development (`dev` → `main`), CI, and releases.
+- **GitHub** ([moolap/sonicwall-sdk](https://github.com/moolap/sonicwall-sdk)): public mirror of `main` and release tags. See [docs/mirroring.md](docs/mirroring.md).
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). DCO sign-off required on all commits.
+
+## Code of Conduct
+
+All participants are expected to follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 

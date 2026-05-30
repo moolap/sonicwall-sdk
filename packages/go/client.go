@@ -81,7 +81,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, bodyData in
 	if bodyData != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if cookie := c.auth.cookieHeader(); cookie != "" {
+	if authHeader := c.auth.authorizationHeader(); authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	} else if cookie := c.auth.cookieHeader(); cookie != "" {
 		req.Header.Set("Cookie", cookie)
 	}
 
