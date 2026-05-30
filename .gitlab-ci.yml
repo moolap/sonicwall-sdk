@@ -45,7 +45,7 @@ variables:
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:22-alpine"
   GO_IMAGE: "golang:1.25-alpine"
-  JAVA_IMAGE: "eclipse-temurin:21-jdk"
+  JAVA_IMAGE: "maven:3.9-eclipse-temurin-21"
   # GitHub release (not GHCR): avoids Docker ENTRYPOINT + non-root job user not being able to run /root/osv-scanner.
   OSV_SCANNER_VERSION: "v2.3.5"
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
