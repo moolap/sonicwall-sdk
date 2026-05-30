@@ -5,6 +5,7 @@
 
 set -e
 ROOT="${CI_PROJECT_DIR:-.}"
+. "${ROOT}/scripts/ci-ensure-java.sh"
 MAVEN_VERSION="${MAVEN_VERSION:-3.9.9}"
 INSTALL_DIR="${ROOT}/.maven-tool"
 MAVEN_HOME="${INSTALL_DIR}/apache-maven-${MAVEN_VERSION}"
@@ -15,11 +16,6 @@ _mvn_ok() {
 
 if _mvn_ok; then
 	return 0 2>/dev/null || exit 0
-fi
-
-if ! command -v java >/dev/null 2>&1; then
-	echo "ci-ensure-maven: java not found on PATH (required for Maven)" >&2
-	return 1 2>/dev/null || exit 1
 fi
 
 mkdir -p "${INSTALL_DIR}"

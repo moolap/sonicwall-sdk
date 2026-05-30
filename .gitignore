@@ -51,6 +51,7 @@ packages/go/vendor/
 .osv-scanner-bin/
 .go-toolchain/
 .maven-tool/
+.java-toolchain/
 # Leaked GOMODCACHE / toolchain under repo (CI + shell runners); never commit
 .go/
 
