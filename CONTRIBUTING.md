@@ -192,7 +192,9 @@ By participating, you agree to follow the project
 3. On **`main`**, set **`VERSION`** to the release (e.g. `0.2.0`), run **`python3 scripts/sync_versions_from_file.py`**, commit, push to **`main`** (via MR from a short-lived branch is fine).
 4. Tag and push: **`git tag 0.2.0`** (or **`git tag v0.2.0`**) && **`git push origin 0.2.0`** (or **`v0.2.0`**) — tag must point at the commit that contains the synced files.
 
-Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, and **`version.go`** aligned (use the sync script). No CI job pushes git commits for releases.
+Treat the SDK as one product: keep **`VERSION`**, **`pyproject.toml`**, **`package.json`**, **`version.go`**, and **`pom.xml`** aligned (use the sync script). No CI job pushes git commits for releases.
+
+**Consumers:** semver pins, mainline-only tags, and GitHub install paths are documented in **[docs/releases.md](docs/releases.md)**.
 
 ### CI runners (private vs GitLab shared)
 

@@ -8,6 +8,8 @@ The public open-source copy is mirrored to:
 
 Only **`main`** and **release tags** are pushed. The `dev` branch is not mirrored.
 
+Consumer-facing versioning and install instructions: **[releases.md](releases.md)**.
+
 ## One-time setup
 
 ### 1. Create the GitHub repository
