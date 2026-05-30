@@ -46,6 +46,7 @@ variables:
   NODE_IMAGE: "node:22-alpine"
   GO_IMAGE: "golang:1.25-alpine"
   JAVA_IMAGE: "maven:3.9-eclipse-temurin-21"
+  MAVEN_VERSION: "3.9.9"
   # GitHub release (not GHCR): avoids Docker ENTRYPOINT + non-root job user not being able to run /root/osv-scanner.
   OSV_SCANNER_VERSION: "v2.3.5"
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
@@ -283,6 +284,8 @@ java:lint:
   extends: .integrity
   stage: lint
   image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
   script:
     - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q validate compile
 
@@ -353,6 +356,8 @@ java:test:
   extends: .integrity
   stage: test
   image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
   script:
     - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B test
 
@@ -406,6 +411,8 @@ java:build:
   extends: .integrity
   stage: build
   image: ${JAVA_IMAGE}
+  before_script:
+    - . "${CI_PROJECT_DIR}/scripts/ci-ensure-maven.sh"
   script:
     - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q package -DskipTests
   artifacts:
