@@ -39,7 +39,7 @@ describe("AuthManager digest + bearer", () => {
     );
 
     const auth = new AuthManager(`${BASE}/`, "admin", "password");
-    await auth.ensureAuthenticated({} as never);
+    await auth.ensureAuthenticated();
     expect(auth.getBearerToken()).toBe("test-bearer-token");
     expect(auth.getSessionCookie()).toBeNull();
   });
@@ -61,7 +61,7 @@ describe("AuthManager digest + bearer", () => {
     );
 
     const auth = new AuthManager(`${BASE}/`, "admin", "password");
-    await auth.ensureAuthenticated({} as never);
+    await auth.ensureAuthenticated();
     expect(auth.getSessionCookie()).toBe("cookie-value");
   });
 });

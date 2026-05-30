@@ -2,7 +2,7 @@
  * AuthManager — SonicOS session auth (Digest + bearer or Basic + cookie).
  */
 
-import type { BeforeRequestHook, KyInstance } from "ky";
+import type { BeforeRequestHook } from "ky";
 import { AuthenticationError, SessionExpiredError } from "./errors.ts";
 import {
   buildDigestAuthHeader,
@@ -29,7 +29,7 @@ export class AuthManager {
     return this.authenticated && (this.bearerToken !== null || this.sessionCookie !== null);
   }
 
-  async ensureAuthenticated(_ky: KyInstance): Promise<void> {
+  async ensureAuthenticated(): Promise<void> {
     if (this.isAuthenticated) return;
 
     if (this.authPromise) {
@@ -43,7 +43,7 @@ export class AuthManager {
     return this.authPromise;
   }
 
-  async reauthenticate(_ky: KyInstance): Promise<void> {
+  async reauthenticate(): Promise<void> {
     this.sessionCookie = null;
     this.bearerToken = null;
     this.authMode = null;
@@ -57,7 +57,7 @@ export class AuthManager {
     return this.authPromise;
   }
 
-  async logout(_ky: KyInstance): Promise<void> {
+  async logout(): Promise<void> {
     if (!this.isAuthenticated) return;
     const authUrl = `${this.baseUrl}auth`;
     const headers: Record<string, string> = { Accept: "application/json" };

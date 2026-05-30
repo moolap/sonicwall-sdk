@@ -58,11 +58,10 @@ func pickAuthIntChallenge(headers []string) digestChallenge {
 }
 
 func digestPriority(c digestChallenge) int {
-	alg := strings.ToUpper(c["algorithm"])
-	switch {
-	case alg == "SHA-256":
+	switch strings.ToUpper(c["algorithm"]) {
+	case "SHA-256":
 		return 0
-	case alg == "SHA-256-SESS":
+	case "SHA-256-SESS":
 		return 1
 	default:
 		return 2
