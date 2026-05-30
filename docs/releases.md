@@ -38,13 +38,13 @@ After each push to **`main`** or a release tag, CI mirrors to:
 
 **https://github.com/moolap/sonicwall-sdk**
 
-You can browse source, clone, or download tarballs/zipballs from **`main`** or any release tag on GitHub. For production, **pin a release tag** (`v0.1.0`), not a moving branch tip.
+You can browse source, clone, or download tarballs/zipballs from **`main`** or any release tag on GitHub. For production, **pin a release tag** (`v0.2.0`), not a moving branch tip.
 
 See [mirroring.md](mirroring.md) for maintainer setup.
 
 ## Installing a specific version
 
-Replace `0.1.0` / `v0.1.0` with the version you want. List tags on GitHub: **Releases** or `git tag -l`.
+Replace `0.1.0` / `v0.2.0` with the version you want. List tags on GitHub: **Releases** or `git tag -l`.
 
 ### Python (PyPI — preferred)
 
@@ -58,13 +58,13 @@ uv add sonicwall-sdk==0.1.0
 ### Python (from GitHub tag)
 
 ```bash
-pip install "git+https://github.com/moolap/sonicwall-sdk.git@v0.1.0#subdirectory=packages/python"
+pip install "git+https://github.com/moolap/sonicwall-sdk.git@v0.2.0#subdirectory=packages/python"
 ```
 
 Or clone and install locally:
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
+git clone --branch v0.2.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
 pip install ./sonicwall-sdk/packages/python
 ```
 
@@ -82,7 +82,7 @@ npm install @sonicwall/sdk@0.1.0
 Clone, build, and link or pack:
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
+git clone --branch v0.2.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
 cd sonicwall-sdk
 pnpm install --frozen-lockfile
 pnpm --filter @sonicwall/sdk run build
@@ -91,47 +91,66 @@ pnpm add file:./packages/typescript   # from your app repo
 
 ### Go (module proxy — preferred)
 
-The Go module path is `github.com/gandiva-tech/sonicwall-sdk/go`. Releases use a **second tag** on the same commit:
+The Go module path is `github.com/moolap/sonicwall-sdk/go`. Releases use a **second tag** on the same commit:
 
 | Tag | Purpose |
 |-----|---------|
-| `v0.1.0` (or `0.1.0`) | Same as other languages; used by CI |
-| `go/v0.1.0` | Required for `go get` / pkg.go.dev |
+| `v0.2.0` (or `0.2.0`) | Same as other languages; used by CI |
+| `go/v0.2.0` | Required for `go get` / pkg.go.dev |
 
 ```bash
-go get github.com/gandiva-tech/sonicwall-sdk/go@v0.1.0
+go get github.com/moolap/sonicwall-sdk/go@v0.2.0
 ```
 
 `go.mod`:
 
 ```go
-require github.com/gandiva-tech/sonicwall-sdk/go v0.1.0
+require github.com/moolap/sonicwall-sdk/go v0.2.0
 ```
 
-After tagging on GitLab `main`, push the Go module tag (CI prints the command):
-
-```bash
-git tag go/v0.1.0 <commit-sha> && git push origin go/v0.1.0
-```
+After tagging on GitLab `main`, CI pushes **`go/vX.Y.Z`** automatically (`scripts/ci-push-go-module-tag.sh`). Set **`GITLAB_PUSH_TOKEN`** (scope `write_repository`) if `CI_JOB_TOKEN` cannot push tags.
 
 ### Go (from GitHub checkout)
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
+git clone --branch v0.2.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
 ```
 
 In your app's `go.mod`:
 
 ```go
-replace github.com/gandiva-tech/sonicwall-sdk/go => ../sonicwall-sdk/packages/go
+replace github.com/moolap/sonicwall-sdk/go => ../sonicwall-sdk/packages/go
 ```
 
-### Java (Maven — from source today)
+### Java (GitLab Maven — preferred on tag release)
+
+On release tags, CI publishes to the project Maven registry:
+
+```xml
+<repositories>
+  <repository>
+    <id>gitlab-maven</id>
+    <url>https://gitlab.com/api/v4/projects/&lt;project-id&gt;/packages/maven</url>
+  </repository>
+</repositories>
+```
+
+```xml
+<dependency>
+  <groupId>tech.gandiva</groupId>
+  <artifactId>sonicwall-sdk</artifactId>
+  <version>0.2.0</version>
+</dependency>
+```
+
+Replace `<project-id>` with the GitLab project ID (`gandiva-tech/sonicwall-sdk`). Authenticate with a deploy token or `CI_JOB_TOKEN` in CI.
+
+### Java (from GitHub source)
 
 Java is not yet published to Maven Central. Pin the semver in your POM and build from a **mainline tag** on GitHub:
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
+git clone --branch v0.2.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
 cd sonicwall-sdk/packages/java && mvn install
 ```
 
@@ -139,9 +158,18 @@ cd sonicwall-sdk/packages/java && mvn install
 <dependency>
   <groupId>tech.gandiva</groupId>
   <artifactId>sonicwall-sdk</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
 </dependency>
 ```
+
+## CI variables for releases
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `GITHUB_MIRROR_TOKEN` | For GitHub mirror | Push `main` and tags to [github.com/moolap/sonicwall-sdk](https://github.com/moolap/sonicwall-sdk) |
+| `GITLAB_PUSH_TOKEN` | If `CI_JOB_TOKEN` cannot push tags | Push `go/vX.Y.Z` from `go:release` |
+| `NPM_TOKEN` | First npm publish on private runners | Publish `@sonicwall/sdk` (OIDC on shared runners) |
+| `PYPI_API_TOKEN` | Optional | PyPI fallback if trusted publishing is not configured |
 
 ## Checking the version at runtime
 

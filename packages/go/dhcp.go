@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gandiva-tech/sonicwall-sdk/go/models"
+	"github.com/moolap/sonicwall-sdk/go/models"
 )
 
 var dhcpCandidatePaths = []string{

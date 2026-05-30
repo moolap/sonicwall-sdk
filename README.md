@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/sonicwall-sdk?label=PyPI)](https://pypi.org/project/sonicwall-sdk/)
 [![npm](https://img.shields.io/npm/v/@sonicwall/sdk?label=npm)](https://www.npmjs.com/package/@sonicwall/sdk)
-[![Go Reference](https://pkg.go.dev/badge/github.com/gandiva-tech/sonicwall-sdk/go.svg)](https://pkg.go.dev/github.com/gandiva-tech/sonicwall-sdk/go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/moolap/sonicwall-sdk/go.svg)](https://pkg.go.dev/github.com/moolap/sonicwall-sdk/go)
 [![GitLab CI](https://gitlab.com/gandiva-tech/sonicwall-sdk/badges/main/pipeline.svg)](https://gitlab.com/gandiva-tech/sonicwall-sdk/-/pipelines)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -30,7 +30,7 @@ All four SDKs raise `UnsupportedEndpointError` (or language equivalent) when Son
 
 ## Versioning and releases
 
-All SDKs share one **semver** from the repository root [`VERSION`](VERSION) file (currently **0.1.0**). Release tags (`0.1.0` or `v0.1.0`) are created **only on `main`** after CI validation; **`dev` is not published**.
+All SDKs share one **semver** from the repository root [`VERSION`](VERSION) file (currently **0.2.0**). Release tags (`0.1.0` or `v0.1.0`) are created **only on `main`** after CI validation; **`dev` is not published**.
 
 **Public source mirror:** [github.com/moolap/sonicwall-sdk](https://github.com/moolap/sonicwall-sdk) — `main` and release tags only. Clone or download a tag for reproducible builds; use registry pins below for day-to-day dependency management.
 
@@ -38,44 +38,44 @@ Full consumer guide: **[docs/releases.md](docs/releases.md)**.
 
 ## Installation
 
-Pin an explicit version in production (examples use `0.1.0`):
+Pin an explicit version in production (examples use `0.2.0`):
 
 ### Python
 
 ```bash
-pip install sonicwall-sdk==0.1.0
+pip install sonicwall-sdk==0.2.0
 # or with uv:
-uv add sonicwall-sdk==0.1.0
+uv add sonicwall-sdk==0.2.0
 ```
 
 From GitHub (tag on `main`):
 
 ```bash
-pip install "git+https://github.com/moolap/sonicwall-sdk.git@v0.1.0#subdirectory=packages/python"
+pip install "git+https://github.com/moolap/sonicwall-sdk.git@v0.2.0#subdirectory=packages/python"
 ```
 
 ### TypeScript / Node.js
 
 ```bash
-pnpm add @sonicwall/sdk@0.1.0
+pnpm add @sonicwall/sdk@0.2.0
 # or:
-npm install @sonicwall/sdk@0.1.0
+npm install @sonicwall/sdk@0.2.0
 ```
 
-From GitHub: clone tag `v0.1.0`, build `packages/typescript`, then `pnpm add file:./packages/typescript` — see [docs/releases.md](docs/releases.md).
+From GitHub: clone tag `v0.2.0`, build `packages/typescript`, then `pnpm add file:./packages/typescript` — see [docs/releases.md](docs/releases.md).
 
 ### Go
 
 ```bash
-go get github.com/gandiva-tech/sonicwall-sdk/go@v0.1.0
+go get github.com/moolap/sonicwall-sdk/go@v0.2.0
 ```
 
-Requires a **`go/v0.1.0`** tag on the same commit as the release (see [docs/releases.md](docs/releases.md)).
+Requires a **`go/v0.2.0`** tag on the same commit as the release (pushed automatically by CI).
 
 ### Java
 
 ```bash
-git clone --branch v0.1.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
+git clone --branch v0.2.0 --depth 1 https://github.com/moolap/sonicwall-sdk.git
 cd sonicwall-sdk/packages/java && mvn install
 ```
 
@@ -85,11 +85,11 @@ Maven dependency (semver pin):
 <dependency>
   <groupId>tech.gandiva</groupId>
   <artifactId>sonicwall-sdk</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
-Java is built from source until Maven Central publishing is enabled.
+Java is also published to **GitLab Maven** on release tags; Maven Central is not configured yet.
 
 ## Quick Start
 
@@ -177,7 +177,7 @@ import (
     "fmt"
     "log"
 
-    sonicwall "github.com/gandiva-tech/sonicwall-sdk/go"
+    sonicwall "github.com/moolap/sonicwall-sdk/go"
 )
 
 func main() {

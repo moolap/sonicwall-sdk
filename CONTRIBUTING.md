@@ -183,7 +183,12 @@ By participating, you agree to follow the project
 
 1. Runs the same checks again, plus **`validate:release-versions`** (root **`VERSION`** must match the tag, and Python / TypeScript / Go metadata must match **`VERSION`**).
 2. Runs **`validate:tag-from-main`** (the tagged commit must be on the **`main`** line).
-3. Runs **`python:release`**, **`typescript:release`**, and **`go:release`** (build/test + PyPI + npm; Go still needs a separate **`go/vX.Y.Z`** tag on the same commit for `go get` — the job prints the exact command).
+3. Runs **`python:release`**, **`typescript:release`**, **`go:release`** (auto-pushes **`go/vX.Y.Z`**), and **`java:release`** (GitLab Maven).
+4. Runs **`mirror:github`** (public **`main`**, release tag, and **`go/vX.Y.Z`** on GitHub).
+
+**Before tagging**, run **`./scripts/release-check.sh`** on `main` to confirm `VERSION` matches all packages.
+
+If **`go:release`** cannot push the module tag, add CI variable **`GITLAB_PUSH_TOKEN`** (project access token, scope **`write_repository`**, masked).
 
 **Typical loop**
 

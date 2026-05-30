@@ -1,6 +1,6 @@
 {
   "name": "@sonicwall/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TypeScript/JavaScript SDK for the SonicOS REST API",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
@@ -52,10 +52,17 @@
     "networking"
   ],
   "license": "Apache-2.0",
-  "homepage": "https://gitlab.com/gandiva-tech/sonicwall-sdk",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "homepage": "https://github.com/moolap/sonicwall-sdk",
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/gandiva-tech/sonicwall-sdk.git",
+    "url": "git+https://github.com/moolap/sonicwall-sdk.git",
     "directory": "packages/typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/moolap/sonicwall-sdk/issues"
   }
 }

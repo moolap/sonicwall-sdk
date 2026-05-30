@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-19
+
 ### Added
-- OSS community baseline documents (`CODE_OF_CONDUCT.md`, issue templates, PR template).
+- Java SDK with full CRUD parity, WireMock tests, and Digest+bearer auth.
+- Digest `auth-int` + bearer auth (with cookie fallback) in TypeScript, Go, and Java.
+- `UnsupportedEndpointError` / firmware limitation detection in TypeScript, Go, and Java.
+- Release automation: `go/vX.Y.Z` tag push, Java GitLab Maven deploy, GitHub mirror of tags.
+- Consumer release guide (`docs/releases.md`).
+
+### Changed
+- Go module path: `github.com/moolap/sonicwall-sdk/go` (public GitHub mirror).
+- Live validation results documented in `docs/current-status.md`.
 
 ## [0.1.0] - 2026-05-01
 

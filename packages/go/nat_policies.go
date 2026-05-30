@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gandiva-tech/sonicwall-sdk/go/models"
+	"github.com/moolap/sonicwall-sdk/go/models"
 )
 
 const natPoliciesBase = "/nat-policies/ipv4"

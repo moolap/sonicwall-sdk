@@ -70,6 +70,6 @@ git push github --tags
 
 Use a credential helper or PAT locally; do not store the PAT in the repository.
 
-## Package URLs vs mirror path
+## Package URLs
 
-The Go module path may still reference `github.com/gandiva-tech/sonicwall-sdk/go` until you intentionally align module path, `go.mod`, and docs with `moolap/sonicwall-sdk`. Mirroring code does not change `go get` paths automatically.
+The Go module path is **`github.com/moolap/sonicwall-sdk/go`**, aligned with the public GitHub mirror. `go get` and pkg.go.dev use the **`go/vX.Y.Z`** tag pushed by CI on each release.
