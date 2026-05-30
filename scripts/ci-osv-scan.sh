@@ -103,6 +103,7 @@ export PATH
 
 echo "Scanning lockfiles at ${CI_COMMIT_SHA:-HEAD}"
 osv-scanner scan \
+  --config="${CI_PROJECT_DIR}/.osv-scanner.toml" \
   --lockfile=packages/python/uv.lock \
   --lockfile=pnpm-lock.yaml \
   --lockfile=packages/go/go.mod \
