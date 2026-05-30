@@ -6,7 +6,7 @@
 [![GitLab CI](https://gitlab.com/gandiva-tech/sonicwall-sdk/badges/main/pipeline.svg)](https://gitlab.com/gandiva-tech/sonicwall-sdk/-/pipelines)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Multi-language SDK for the SonicOS REST API. Manage address objects, access rules, NAT policies, interfaces, service objects, and DHCP from Python, TypeScript, or Go — with proper session management, pending-config transactions, and typed errors.
+Multi-language SDK for the SonicOS REST API. Manage address objects, access rules, NAT policies, interfaces, service objects, and DHCP from Python, TypeScript, Go, or Java — with proper session management, pending-config transactions, and typed errors.
 
 ## Features
 
@@ -24,6 +24,7 @@ Multi-language SDK for the SonicOS REST API. Manage address objects, access rule
 | Python | Digest `auth-int` handshake on `POST /auth`, then `Authorization: Bearer <token>` | Targets SonicOS 7.x behavior where auth returns `bearer_token` |
 | TypeScript | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
 | Go | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
+| Java | `Authorization: Basic ...` on `POST /auth`, then `Cookie: smngsess=...` | Works for cookie-based firmware variants |
 
 If your target device requires Digest `auth-int` + bearer token, use Python now
 or plan parity updates for TypeScript/Go before production rollout.
@@ -50,6 +51,22 @@ npm install @sonicwall/sdk
 
 ```bash
 go get github.com/gandiva-tech/sonicwall-sdk/go
+```
+
+### Java
+
+```bash
+cd packages/java && mvn install
+```
+
+Maven dependency:
+
+```xml
+<dependency>
+  <groupId>tech.gandiva</groupId>
+  <artifactId>sonicwall-sdk</artifactId>
+  <version>0.1.0</version>
+</dependency>
 ```
 
 ## Quick Start
@@ -197,6 +214,8 @@ except AuthenticationError:
 - [Python guide](docs/python.md)
 - [TypeScript guide](docs/typescript.md)
 - [Go guide](docs/go.md)
+- [Java guide](docs/java.md)
+- [Language parity matrix](docs/language-parity.md)
 - [SonicOS quirks and gotchas](docs/sonicwall-quirks.md)
 - [Endpoint support matrix](docs/endpoint-support-matrix.md)
 - [Release readiness checklist](docs/release-readiness.md)
@@ -243,6 +262,7 @@ SONICWALL_INTEGRATION_WRITE=1 uv run pytest tests/integration -m integration_wri
 - Authentication parity is currently uneven across SDKs:
   - Python supports SonicOS 7.x Digest `auth-int` + bearer token flow.
   - TypeScript and Go currently target Basic + `smngsess` cookie variants.
+  - Java currently targets Basic + `smngsess` cookie variants.
 - Interface and DHCP endpoints vary by firmware and may be unavailable on some
   validated devices. See `docs/current-status.md` and `docs/sonicwall-quirks.md`.
 

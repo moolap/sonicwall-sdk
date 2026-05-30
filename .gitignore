@@ -53,6 +53,9 @@ packages/go/vendor/
 # Leaked GOMODCACHE / toolchain under repo (CI + shell runners); never commit
 .go/
 
+# Java
+packages/java/target/
+
 # IDE
 .idea/
 .vscode/

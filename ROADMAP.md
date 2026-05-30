@@ -21,9 +21,12 @@ Python is the **reference implementation**. TypeScript and Go follow after Pytho
 
 - [ ] Port SonicOS 7.x Digest + bearer auth to TypeScript
 - [ ] Port SonicOS 7.x Digest + bearer auth to Go
+- [ ] Port SonicOS 7.x Digest + bearer auth to Java
 - [ ] Port Python payload fallbacks to TypeScript and Go
+- [ ] Port Python payload fallbacks to Java (access rules, NAT, service objects writes)
 - [ ] Go unit test suite (currently none)
-- [ ] TypeScript tests beyond address objects
+- [x] Java SDK scaffold (`packages/java`) with address-object CRUD + list APIs
+- [x] Java unit + WireMock integration tests (auth, errors, wire format, all list services)
 
 ## OSS / release
 

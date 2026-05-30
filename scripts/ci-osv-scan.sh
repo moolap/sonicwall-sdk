@@ -105,6 +105,7 @@ echo "Scanning lockfiles at ${CI_COMMIT_SHA:-HEAD}"
 osv-scanner scan \
   --lockfile=packages/python/uv.lock \
   --lockfile=pnpm-lock.yaml \
-  --lockfile=packages/go/go.mod
+  --lockfile=packages/go/go.mod \
+  --lockfile=packages/java/pom.xml
 
 echo "OK — osv-scanner found no issues (same pass criteria as CI)."

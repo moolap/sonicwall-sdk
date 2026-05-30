@@ -345,6 +345,12 @@ class _SyncAccessRulesResource(_SyncResourceBase):
     def delete(self, from_zone: str, to_zone: str, name: str) -> None:
         self._run(self._async.delete(from_zone, to_zone, name))
 
+    def insert_before(self, obj: Any, before_name: str) -> Any:
+        return self._run(self._async.insert_before(obj, before_name))
+
+    def insert_after(self, obj: Any, after_name: str) -> Any:
+        return self._run(self._async.insert_after(obj, after_name))
+
 
 class _SyncInterfacesResource(_SyncResourceBase):
     def list(self) -> Any:
@@ -370,6 +376,9 @@ class _SyncNatPoliciesResource(_SyncResourceBase):
     def delete(self, name: str) -> None:
         self._run(self._async.delete(name))
 
+    def ensure(self, obj: Any) -> Any:
+        return self._run(self._async.ensure(obj))
+
 
 class _SyncServiceObjectsResource(_SyncResourceBase):
     def list(self) -> Any:
@@ -386,6 +395,9 @@ class _SyncServiceObjectsResource(_SyncResourceBase):
 
     def delete(self, name: str) -> None:
         self._run(self._async.delete(name))
+
+    def ensure(self, obj: Any) -> Any:
+        return self._run(self._async.ensure(obj))
 
 
 class _SyncDhcpResource(_SyncResourceBase):

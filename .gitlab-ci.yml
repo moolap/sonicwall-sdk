@@ -45,6 +45,7 @@ variables:
   PYTHON_IMAGE: "python:3.12-slim"
   NODE_IMAGE: "node:22-alpine"
   GO_IMAGE: "golang:1.25-alpine"
+  JAVA_IMAGE: "eclipse-temurin:21-jdk"
   # GitHub release (not GHCR): avoids Docker ENTRYPOINT + non-root job user not being able to run /root/osv-scanner.
   OSV_SCANNER_VERSION: "v2.3.5"
   # Must be built with Go >= module version in packages/go/go.mod (v1.60.3 was Go 1.23, breaks go 1.25).
@@ -213,8 +214,9 @@ validate:release-versions:
       PY="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' packages/python/pyproject.toml)"
       TS="$(sed -n 's/^  "version": "\([^"]*\)",$/\1/p' packages/typescript/package.json)"
       GO="$(sed -n 's/^const Version = "\([^"]*\)"$/\1/p' packages/go/version.go)"
-      if [ "$PY" != "$V" ] || [ "$TS" != "$V" ] || [ "$GO" != "$V" ]; then
-        echo "ERROR: version mismatch — VERSION=$V pyproject=$PY package.json=$TS version.go=$GO"
+      JAVA="$(sed -n 's|^  <version>\([^<]*\)</version>$|'\''\1'\''|p' packages/java/pom.xml | head -1)"
+      if [ "$PY" != "$V" ] || [ "$TS" != "$V" ] || [ "$GO" != "$V" ] || [ "$JAVA" != "$V" ]; then
+        echo "ERROR: version mismatch — VERSION=$V pyproject=$PY package.json=$TS version.go=$GO pom.xml=$JAVA"
         echo "Run: python3 scripts/sync_versions_from_file.py && git commit -am 'chore: sync versions'"
         exit 1
       fi
@@ -276,6 +278,13 @@ go:lint:
   script:
     - export PATH="${CI_PROJECT_DIR}/.golangci-bin:${PATH}"
     - cd "${CI_PROJECT_DIR}/packages/go" && golangci-lint run ./...
+
+java:lint:
+  extends: .integrity
+  stage: lint
+  image: ${JAVA_IMAGE}
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q validate compile
 
 # === TEST ===
 
@@ -340,6 +349,13 @@ go:test:
       - packages/go/coverage.out
     expire_in: 1 week
 
+java:test:
+  extends: .integrity
+  stage: test
+  image: ${JAVA_IMAGE}
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B test
+
 # === BUILD ===
 
 python:build:
@@ -385,6 +401,17 @@ go:build:
     - . "${CI_PROJECT_DIR}/scripts/ci-ensure-go.sh"
   script:
     - cd "${CI_PROJECT_DIR}/packages/go" && go build ./...
+
+java:build:
+  extends: .integrity
+  stage: build
+  image: ${JAVA_IMAGE}
+  script:
+    - cd "${CI_PROJECT_DIR}/packages/java" && mvn -B -q package -DskipTests
+  artifacts:
+    paths:
+      - packages/java/target/*.jar
+    expire_in: 1 week
 
 # === SECURITY (dependency / vuln scan — pipeline fails if OSV reports issues) ===
 
